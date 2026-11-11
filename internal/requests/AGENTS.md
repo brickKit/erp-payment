@@ -25,7 +25,7 @@
 | `requests.go` | `prepare`（事务外取证：法人、账户与币种、收款方、部门、行金额；装了财务时每行必须有未清项，没装时不能有）、`writeLines`；`CreateRequest`（内部号 `PR` 在事务之前取）、`UpdateRequest`（草稿，按版本）、`GetRequest`、`ListRequests`、`ListProposals`（转财务的 `DueItems`） |
 | `actions.go` | `Action`、`moved`；`payable`（PR02：按收款方、种类、币种在财务的到期未清项里核对）、`releaseAll`；`submit`、`approve`、`giveBack`（驳回与取消）、`release`、`split`（逐行或按顺序分实付）、`execute`、`returned` |
 | `checks.go` | `CheckHeldClaims`、`HeldClaims`（整套恢复的检查：已放行的申请在财务那边的认领不是已确认的报出来，事务之后才问财务；不改状态） |
-| `renewal.go` | `JobRenewClaim`、`RenewClaim`（PR08：续期并排下一次；被拒则 `lapse` 回草稿、释放其余认领）、`renewAt`（期限前一小时，期限更短时在中点）、`scheduleRenewal`、`holds` |
+| `renewal.go` | `JobRenewClaim`、`RenewClaim`（PR08：续期并排下一次；被拒则 `lapse`：释放全部认领、回草稿；放行时认领失效也走 `lapse`）、`renewAt`（期限前一小时，期限更短时在中点）、`scheduleRenewal`、`holds` |
 
 ## 依赖与被依赖
 

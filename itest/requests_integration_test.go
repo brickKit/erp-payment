@@ -172,14 +172,20 @@ func (fx *fixture) requests() {
 	assert.Equal(t, map[string]any{"rate": "7.1", "date": fx.today(), "type": "spot"}, fu["exchange_rate"])
 	assert.Nil(t, at(fu, "dimensions", "department_id"))
 
-	// PR04: a claim lost before the release answers CLAIM_LOST and the request stays approved
-	lost := fx.request(fx.alice, fx.reqBody("payment", fx.supplier, fx.cny, line(p2, "40")))
+	// PR04: a claim lost at the release answers CLAIM_LOST: the claims confirmed before it are released and the
+	// request goes back to draft with the reason (nothing stays held at finance)
+	lost := fx.request(fx.alice, fx.reqBody("payment", fx.supplier, fx.cny, line(p2, "40"), line(p3, "10")))
 	lid := lost["id"].(string)
 	lost = fx.reqAction(fx.alice, lid, "submit", nil)
 	fx.reqAction(fx.bob, lid, "approve", nil)
-	fx.finance.lose(at(lost, "lines", 0, "claim_id").(string))
+	confirmedFirst := at(lost, "lines", 0, "claim_id").(string)
+	fx.finance.lose(at(lost, "lines", 1, "claim_id").(string))
 	fx.reqRefused(fx.bob, lid, "release", nil, "CLAIM_LOST")
-	assert.Equal(t, "approved", fx.get("/api/payment/requests/" + lid)["state"])
+	lost = fx.get("/api/payment/requests/" + lid)
+	assert.Equal(t, "draft", lost["state"])
+	assert.Equal(t, "付款认领已失效", lost["reason"])
+	assert.Equal(t, "released", fx.finance.state(confirmedFirst), "the claim confirmed before the lost one is released")
+	assert.Equal(t, "100.00", fx.finance.available(p3))
 
 	// PR08: waiting claims are renewed before their end; a renewal refused (the claim lapsed) takes the request back to
 	// draft with the reason, its other claims released
@@ -209,7 +215,7 @@ func (fx *fixture) requests() {
 
 	// the list by state; Carol may not read payment requests (404)
 	page := fx.get("/api/payment/requests?legal_entity_id=" + fx.le + "&state=draft")
-	assert.Len(t, page["requests"], 1, page) // the lapsed one (the refused ones were cancelled)
+	assert.Len(t, page["requests"], 2, page) // the lapsed one and the one lost at its release (the refused ones were cancelled)
 	code, _ = fx.carol.do("GET", "/api/payment/requests/"+id, nil)
 	assert.Equal(t, 404, code)
 }

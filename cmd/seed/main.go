@@ -223,7 +223,7 @@ func bankAccounts(c client, e *entity) {
 		have[a["number"].(string)] = a["id"].(string)
 	}
 	made := 0
-	for _, a := range demoAccounts[e.code] {
+	for i, a := range demoAccounts[e.code] {
 		currency := a[3]
 		if currency == "" {
 			currency = e.currency
@@ -231,7 +231,7 @@ func bankAccounts(c client, e *entity) {
 		id := have[a[2]]
 		if id == "" {
 			id = c.must("POST", "/api/payment/bank-accounts", map[string]any{"legal_entity_id": e.id, "name": a[0], "bank": a[1],
-				"number": a[2], "currency": currency}, "Idempotency-Key", "seed-payment-account-"+e.code+"-"+a[0])["id"].(string)
+				"number": a[2], "currency": currency}, "Idempotency-Key", fmt.Sprintf("seed-payment-account-%s-%d", e.code, i+1))["id"].(string)
 			made++
 		}
 		e.accounts[a[0]] = id

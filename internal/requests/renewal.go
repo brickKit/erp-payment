@@ -62,7 +62,7 @@ func RenewClaim(m *core.Base, ctx context.Context, w *work.Run) error {
 		if !core.ClaimRefused(err) {
 			return err // finance not reachable: the work item retries
 		}
-		return lapse(m, ctx, r, a.ClaimID)
+		return lapse(m, ctx, r)
 	}
 	return m.RT.DB.Tx(ctx, func(ctx context.Context, tx db.Tx) error {
 		cur, err := Get(ctx, tx, a.RequestID, true)
@@ -90,15 +90,10 @@ func holds(r Request, claim string) bool {
 	return false
 }
 
-// lapse takes the request back to draft with the reason; its other claims released first.
-func lapse(m *core.Base, ctx context.Context, r Request, lost string) error {
-	var others []string
-	for _, c := range r.claims() {
-		if c != lost {
-			others = append(others, c)
-		}
-	}
-	if err := releaseAll(m, ctx, others); err != nil {
+// lapse takes the request back to draft with the reason; every claim it holds released first (the lost one too: a
+// confirmed claim refused a renewal is still held at finance, and a release of a lapsed one is a no-op there).
+func lapse(m *core.Base, ctx context.Context, r Request) error {
+	if err := releaseAll(m, ctx, r.claims()); err != nil {
 		return err
 	}
 	reason := LapseReason

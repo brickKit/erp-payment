@@ -11,7 +11,7 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `accounts.go` | `Account`（`Mask`：按可读字段遮蔽账号）；`Get`、`Usable`；`CreateBankAccount`（法人与币种在用，同一法人账号不重复 `CODE_TAKEN`）、`GetBankAccount`、`UpdateBankAccount`（按版本）、`ListBankAccounts`（按名称；每行连同 SDK 的 `q.Hits` 一起选出，按这一行可读的字段遮蔽） |
+| `accounts.go` | `Account`（`Mask`：按可读字段遮蔽账号）；`Get`、`Usable`；`CreateBankAccount`（法人与币种在用，同一法人账号不重复 `CODE_TAKEN`；审计写遮蔽后的账户：SDK 只遮蔽审计变更的顶层字段）、`GetBankAccount`、`UpdateBankAccount`（按版本）、`ListBankAccounts`（按名称；每行连同 SDK 的 `q.Hits` 一起选出，按这一行可读的字段遮蔽） |
 
 ## 依赖与被依赖
 

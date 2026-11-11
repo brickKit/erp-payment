@@ -3,6 +3,8 @@
 package itest
 
 import (
+	core "github.com/brickKit/erp-payment/v3/internal/core"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,6 +49,12 @@ func (fx *fixture) bankAccounts() {
 	assert.Equal(t, "****0001", at(page, "bank_accounts", 0, "number"))
 	assert.Equal(t, "6214 8312 0000 0001", at(fx.get("/api/payment/bank-accounts?legal_entity_id="+fx.le+"&currency=USD"),
 		"bank_accounts", 0, "number"))
+
+	// the audit keeps no whole number (a restricted field, security 09a): the record audited is the masked one
+	var whole int
+	require.NoError(t, fx.admin.QueryRow(fx.ctx, "SELECT count(*) FROM "+itSchema+".be_audit_log WHERE target->>'type' = $1 "+
+		"AND (changes::text LIKE '%3456 7890%' OR target::text LIKE '%3456 7890%')", core.BankAccounts).Scan(&whole))
+	assert.Zero(t, whole, "no audit record carries the whole number")
 
 	// changes by version; an inactive account takes nothing (the receipts step)
 	code, out = fx.alice.do("PATCH", "/api/payment/bank-accounts/"+fx.cny, map[string]any{"name": "基本户", "version": 1})

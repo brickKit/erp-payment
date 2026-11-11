@@ -137,7 +137,7 @@ func CreateBankAccount(m *core.Base, c *httpx.Context) error {
 		if err != nil {
 			return idem.Outcome{}, err
 		}
-		return core.IDResult(id), core.Change(m, ctx, tx, actor, core.OpBankAccountWrite, core.BankAccounts, id, a)
+		return core.IDResult(id), core.Change(m, ctx, tx, actor, core.OpBankAccountWrite, core.BankAccounts, id, a.Mask(nil)) // no whole number in the audit
 	})
 	if err != nil {
 		return err
@@ -233,7 +233,7 @@ func UpdateBankAccount(m *core.Base, c *httpx.Context) error {
 		if a, err = Get(ctx, tx, id, false); err != nil {
 			return err
 		}
-		return core.Change(m, ctx, tx, actor, core.OpBankAccountWrite, core.BankAccounts, id, a)
+		return core.Change(m, ctx, tx, actor, core.OpBankAccountWrite, core.BankAccounts, id, a.Mask(nil)) // no whole number in the audit
 	})
 	if err != nil {
 		return err

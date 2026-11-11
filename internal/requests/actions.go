@@ -252,7 +252,10 @@ func release(m *core.Base, ctx context.Context, cur Request, actor string) (Requ
 	if masterdata.Deployed(m, core.Finance) {
 		for _, c := range cur.claims() {
 			if err := masterdata.Confirm(m, ctx, c); err != nil {
-				if core.ClaimRefused(err) {
+				if core.ClaimRefused(err) { // the request cannot go out: its claims released, back to draft (PR04)
+					if lerr := lapse(m, ctx, cur); lerr != nil {
+						return cur, lerr
+					}
 					return cur, core.ErrClaimLost.New("claim " + c + " is no longer held: " + err.Error())
 				}
 				return cur, err

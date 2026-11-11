@@ -21,12 +21,13 @@
 | --- | --- | --- |
 | [`bankaccounts`](internal/bankaccounts/AGENTS.md) | 公司银行账户（账号是受限字段） | `bank_account` |
 | [`receipts`](internal/receipts/AGENTS.md) | 收款单：登记即到账、冲正，资金事实 | `receipt` |
+| [`requests`](internal/requests/AGENTS.md) | 付款建议与付款申请：认领、审批、放行确认、执行、退回 | `payment_request`、`payment_request_line` |
 | [`facts`](internal/facts/AGENTS.md) | 两份共享契约（资金事实、会计事实）的形状与发布；系统面 `FactService.Read` | `payment_fact`（写入在 `core.Fact`） |
 | [`orgunits`](internal/orgunits/AGENTS.md) | 部门投影（协议 02）：部门路径复制到付款申请上 | `org_realign`（投影本身在 SDK 的表里） |
 
-模块共用的（不属于某一个业务）：[`masterdata`](internal/masterdata/AGENTS.md)（事务外取证：主数据、汇率快照、销售的订单，以后还有财务的认领）、[`core`](internal/core/AGENTS.md)（名字、资源与操作的定义、错误与校验、生命周期表的通用写法、增量事实 `Fact`）。
+模块共用的（不属于某一个业务）：[`masterdata`](internal/masterdata/AGENTS.md)（事务外取证：主数据、汇率快照、销售的订单、财务的认领服务）、[`core`](internal/core/AGENTS.md)（名字、资源与操作的定义、错误与校验、生命周期表的通用写法、增量事实 `Fact`）。
 
-**实现进度**（3.0.0 开发中，装配项目阶段计划 C3 的 P3）：公司银行账户、收款单与资金事实、`FactService.Read` 已实现（P3b）；其余路由先答“能力不支持”，按 P3c–P3e 逐个做。加一个模块就在上面两张表里加一行。
+**实现进度**（3.0.0 开发中，装配项目阶段计划 C3 的 P3）：公司银行账户、收款单与资金事实、`FactService.Read` 已实现（P3b）；付款建议与付款申请已实现（P3c）；其余路由先答“能力不支持”，按 P3d、P3e 做。加一个模块就在上面两张表里加一行。
 
 | 想改 | 从这里开始 | 然后 |
 | --- | --- | --- |

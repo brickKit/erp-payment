@@ -8,6 +8,7 @@ import (
 
 	"github.com/brickKit/be-sdk-go/v3/calls"
 	"github.com/brickKit/be-sdk-go/v3/errs"
+	financev3 "github.com/brickKit/erp-finance/contract/v3/gen/go/be/erp/finance/v3"
 	salesv3 "github.com/brickKit/erp-sales/contract/v3/gen/go/be/erp/sales/v3"
 	currencyv3 "github.com/brickKit/mdm-currency/contract/v3/gen/go/be/mdm/currency/v3"
 	orgv3 "github.com/brickKit/mdm-org/contract/v3/gen/go/be/mdm/org/v3"
@@ -207,4 +208,89 @@ func OrderOf(m *core.Base, ctx context.Context, id string) (Order, error) {
 	}
 	var o Order
 	return o, json.Unmarshal(res.GetResults()[0].GetData(), &o)
+}
+
+// finance is erp/finance's ClaimService; refusals come back as this component's reasons of the same name (PR02).
+func finance(m *core.Base) (financev3.ClaimServiceClient, error) {
+	c, err := Conn(m, core.Finance)
+	if err != nil {
+		return nil, err
+	}
+	return financev3.NewClaimServiceClient(c), nil
+}
+
+// claimRefusal turns erp/finance's refusal of a claim command into this component's reason; other errors pass.
+func claimRefusal(err error) error {
+	e, code, ok := errs.FromGRPC(err)
+	if !ok || code != errs.FailedPrecondition {
+		return err
+	}
+	switch e.Reason {
+	case "CLAIM_EXCEEDS_AVAILABLE":
+		return core.ErrClaimExceeds.New(e.Detail)
+	case "CLAIM_CONFLICT":
+		return core.ErrClaimConflict.New(e.Detail)
+	default:
+		return core.ErrClaimState.New(e.Detail)
+	}
+}
+
+// DueItems is one page of erp/finance's due open items (a payment proposal, PR01; the payee's check, PR02).
+func DueItems(m *core.Base, ctx context.Context, in *financev3.DueItemsRequest) (*financev3.DueItemsResponse, error) {
+	f, err := finance(m)
+	if err != nil {
+		return nil, err
+	}
+	return f.DueItems(ctx, in, calls.Idempotent())
+}
+
+// Claim claims an open item's amount under a claim ID (idempotent at erp/finance): the claim's end.
+func Claim(m *core.Base, ctx context.Context, claimID, item, amount string) (string, error) {
+	f, err := finance(m)
+	if err != nil {
+		return "", err
+	}
+	r, err := f.Claim(ctx, &financev3.ClaimRequest{ClaimId: claimID, OpenItemId: item, Amount: amount}, calls.Idempotent())
+	if err != nil {
+		return "", claimRefusal(err)
+	}
+	return r.GetClaim().GetExpiresAt(), nil
+}
+
+// Renew extends a pending claim: its new end.
+func Renew(m *core.Base, ctx context.Context, claimID string) (string, error) {
+	f, err := finance(m)
+	if err != nil {
+		return "", err
+	}
+	r, err := f.Renew(ctx, &financev3.RenewRequest{ClaimId: claimID}, calls.Idempotent())
+	if err != nil {
+		return "", claimRefusal(err)
+	}
+	return r.GetClaim().GetExpiresAt(), nil
+}
+
+// Confirm confirms a claim before the money goes out (PR04).
+func Confirm(m *core.Base, ctx context.Context, claimID string) error {
+	f, err := finance(m)
+	if err != nil {
+		return err
+	}
+	_, err = f.Confirm(ctx, &financev3.ConfirmRequest{ClaimId: claimID}, calls.Idempotent())
+	return claimRefusal(err)
+}
+
+// Release gives a claim back (PR03, PR07, PR08); one finance does not know is released already.
+func Release(m *core.Base, ctx context.Context, claimID string) error {
+	f, err := finance(m)
+	if err != nil {
+		return err
+	}
+	_, err = f.Release(ctx, &financev3.ReleaseRequest{ClaimId: claimID}, calls.Idempotent())
+	if err != nil {
+		if e, _, ok := errs.FromGRPC(err); ok && e.Reason == "CLAIM_STATE" {
+			return nil
+		}
+	}
+	return err
 }

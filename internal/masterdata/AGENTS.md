@@ -1,6 +1,6 @@
 # masterdata：事务外取证（共用）
 
-本组件在事务之前向别的组件取的证据：法人（本位币、代码、时区）、部门、伙伴、币种的小数位、外币的汇率快照、销售的订单；以后还有财务的认领与到期未清项（P3c）。每个调用都在事务外（协议 P4.20）：先取证，再开事务。
+本组件在事务之前向别的组件取的证据：法人（本位币、代码、时区）、部门、伙伴、币种的小数位、外币的汇率快照、销售的订单；财务的认领服务（到期未清项、认领、续期、确认、释放）。每个调用都在事务外（协议 P4.20）：先取证，再开事务。
 
 ## 负责与不负责
 
@@ -11,11 +11,11 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `upstream.go` | `Conn`、`LegalEntityOf`、`OrgUnitRead`（部门投影用）、`PartnerOf`、`CurrencyScale`、`Deployed`、`Rate` 与 `RateOf`（`mdm/currency` 的 `RateService`，按业务日期的即期汇率；同一币种时为空）、`Order` 与 `OrderOf`（`erp/sales` 的 `OrderService.Read`） |
+| `upstream.go` | `Conn`、`LegalEntityOf`、`OrgUnitRead`（部门投影用）、`PartnerOf`、`CurrencyScale`、`Deployed`、`Rate` 与 `RateOf`（`mdm/currency` 的 `RateService`，按业务日期的即期汇率；同一币种时为空）、`Order` 与 `OrderOf`（`erp/sales` 的 `OrderService.Read`）；财务的 `ClaimService`：`DueItems`、`Claim`、`Renew`、`Confirm`、`Release`（财务拒绝时转成本组件同名的原因 `CLAIM_EXCEEDS_AVAILABLE`、`CLAIM_CONFLICT`、`CLAIM_STATE`，`core.ClaimRefused` 判断；释放一个财务不认识的认领算已释放） |
 
 ## 依赖与被依赖
 
-- 依赖：`core`；契约 `mdm/org`、`mdm/partner`、`mdm/currency`、`erp/sales`。
+- 依赖：`core`；契约 `mdm/org`、`mdm/partner`、`mdm/currency`、`erp/sales`、`erp/finance`。
 - 被依赖：各业务模块、`orgunits`。
 
 ## 规则在哪

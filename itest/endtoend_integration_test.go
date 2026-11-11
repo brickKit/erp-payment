@@ -88,6 +88,7 @@ func TestPaymentEndToEnd(t *testing.T) {
 	fx.notInThisVersion()
 	fx.bankAccounts()
 	fx.receipts()
+	fx.requests()
 }
 
 // start makes the world, the stand-ins and mdm/org's stream, then migrates and runs the member.

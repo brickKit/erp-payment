@@ -20,13 +20,14 @@
 | `unsupported_integration_test.go` | `notInThisVersion` | 骨架：还没做的路由答“能力不支持”（每做完一步就换掉它的路由，全做完时删掉这一步） | D75 | 入口 `payment/module.go` |
 | `bankaccounts_integration_test.go` | `bankAccounts` | 上海的人民币、美元、停用的账户与北京的账户；新建的拒绝（法人、币种、同法人账号重复、格式）；别的法人可以同号；Carol 的授予不列受限字段，单条与列表都只看到后四位；按版本改名、停用 | 安全 09a | `bankaccounts` |
 | `receipts_integration_test.go` | `receipts` | 登记即到账、资金事实合乎财务的共享 schema、完整状态事件；同一幂等键答同一张；登记的拒绝（流水号重复、停用或别的法人的账户、暂停的付款方、不是付款方的订单、金额为零）；订单参考随事实、付款方不明为空、美元账户带汇率快照；冲正写原因、冲正事实指向原事实、重复的忽略、冲正后流水号可再用；列表；`FactService.Read` | RC01、RC02 | `receipts`、`bankaccounts`、`facts` |
+| `requests_integration_test.go` | `requests` | 财务的替身放入应付、客户贷方余额、美元应付与应收（P1 上另有 300 的认领）：付款建议；新建的拒绝（没有未清项、同一项两次、停用账户、暂停的收款方、别的法人的部门）；提交时 P1 不够整张不提交、已认领的 P2 释放；改了再提交；申请人不能批准、不能放行；放行确认认领；执行 750（按行的顺序分到 P1 700、P2 50），资金事实带每条认领的实付，再执行忽略、只有一个事实；退回发冲正事实；退款被驳回释放认领、再提交换新认领；放行后取消释放已确认的认领；收款方、种类、币种不符的未清项与应收在认领之前被拒；美元账户付美元应付、逐行给实付、带汇率快照；放行时认领已失效答 `CLAIM_LOST`；认领期限 4 秒时续期保住等着的申请、续期被拒的退回草稿并释放其余认领；列表；Carol 看不到 | PR01–PR08 | `requests`、`facts` |
 
 共用的：
 
 | 文件 | 内容 |
 | --- | --- |
 | `endtoend_integration_test.go` | `TestPaymentEndToEnd`（各步的顺序）；`fixture`（运行中的成员、替身、世界的 ID：上海与北京两个法人、两个部门、一个客户、一个供应商、一个暂停的伙伴；Alice 与 Bob 两个用户，Carol 只读且不读受限字段）；`start`；辅助：`client.do`、`at`、`get`、`unit`、`publishOrgUnit`、`publishOrg`、`portFree` |
-| `standins_integration_test.go` | 替身，各按已发布的契约经 mTLS 答：`mdm/org`（法人与部门）、`mdm/partner`（伙伴与它的状态）、`mdm/currency`（含 `RateService`：USD→CNY 7.1）、`erp/sales` 的 `OrderService.Read`（测试按身份放入订单：`salesStandIn.set`）、`erp/finance` 的 `ClaimService`（随 P3c 实现） |
+| `standins_integration_test.go` | 替身，各按已发布的契约经 mTLS 答：`mdm/org`（法人与部门）、`mdm/partner`（伙伴与它的状态）、`mdm/currency`（含 `RateService`：USD→CNY 7.1）、`erp/sales` 的 `OrderService.Read`（测试按身份放入订单：`salesStandIn.set`）、`erp/finance` 的 `ClaimService`（付款的认领：测试放入未清项 `item`、别人的认领 `claimFor`，让认领失效 `lose`，可改期限 `period`；拒绝时带财务的原因） |
 
 ## 加测试
 

@@ -8,8 +8,12 @@ package itest
 import (
 	"context"
 	"encoding/json"
+	"math/big"
+	"sort"
 	"sync"
+	"time"
 
+	"github.com/brickKit/be-sdk-go/v3/errs"
 	financev3 "github.com/brickKit/erp-finance/contract/v3/gen/go/be/erp/finance/v3"
 	salesv3 "github.com/brickKit/erp-sales/contract/v3/gen/go/be/erp/sales/v3"
 	currencyv3 "github.com/brickKit/mdm-currency/contract/v3/gen/go/be/mdm/currency/v3"
@@ -17,6 +21,7 @@ import (
 	partnerv3 "github.com/brickKit/mdm-partner/contract/v3/gen/go/be/mdm/partner/v3"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 // --- mdm/org: legal entities and departments ---
@@ -120,13 +125,187 @@ func (currencyStandIn) Read(_ context.Context, in *currencyv3.ReadRequest) (*cur
 }
 
 // financeStandIn is erp/finance's ClaimService: the payment use of the claim pattern on the open items the test sets
-// (the claim, renewal, confirmation, release and expiry come with the steps that use them).
+// (protocol 05; erp/finance's CL01-CL08 as far as a payer sees them). A claim lasts period; renew and confirm can be
+// refused for a claim the test marks lost.
 type financeStandIn struct {
 	financev3.UnimplementedClaimServiceServer
-	mu sync.Mutex
+	mu     sync.Mutex
+	items  map[string]*financev3.OpenItem
+	claims map[string]*standInClaim
+	period time.Duration
+	lost   map[string]bool
+	renews int
 }
 
-func newFinanceStandIn() *financeStandIn { return &financeStandIn{} }
+type standInClaim struct {
+	item, amount, state string
+	expires             time.Time
+}
+
+func newFinanceStandIn() *financeStandIn {
+	return &financeStandIn{items: map[string]*financev3.OpenItem{}, claims: map[string]*standInClaim{}, period: time.Hour,
+		lost: map[string]bool{}}
+}
+
+// The reasons erp/finance answers (its domain), as the system surface carries them.
+var (
+	finExceeds  = errs.Define("erp/finance", "CLAIM_EXCEEDS_AVAILABLE", errs.FailedPrecondition, 409, errs.RetryNo, "More than available")
+	finConflict = errs.Define("erp/finance", "CLAIM_CONFLICT", errs.FailedPrecondition, 409, errs.RetryNo, "Another amount")
+	finState    = errs.Define("erp/finance", "CLAIM_STATE", errs.FailedPrecondition, 409, errs.RetryNo, "Not in that state")
+)
+
+func refuse(e errs.Declared, why string) error { return e.New(why).GRPCStatus().Err() }
+
+// item adds an open item with its available balance.
+func (f *financeStandIn) item(id, kind, le, partner, currency, available, due string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.items[id] = &financev3.OpenItem{Id: id, Kind: kind, LegalEntityId: le, PartnerId: partner, Currency: currency,
+		Amount: available, Settled: "0", PayClaimed: "0", Available: available, DueDate: due, SourceKind: "supplier_invoice",
+		SourceNumber: "SI-" + id[:4]}
+}
+
+func (f *financeStandIn) moveAvailable(item, by string, sign int) {
+	o := f.items[item]
+	a, _ := new(big.Rat).SetString(o.Available)
+	b, _ := new(big.Rat).SetString(by)
+	if sign < 0 {
+		b.Neg(b)
+	}
+	o.Available = a.Add(a, b).FloatString(2)
+}
+
+func (f *financeStandIn) proto(id string) *financev3.Claim {
+	c := f.claims[id]
+	out := &financev3.Claim{ClaimId: id, OpenItemId: c.item, Amount: c.amount, State: c.state, FormalizedAmount: "0", ReversedAmount: "0"}
+	if c.state == "pending" {
+		out.ExpiresAt = c.expires.UTC().Format(time.RFC3339Nano)
+	}
+	return out
+}
+
+func (f *financeStandIn) Claim(_ context.Context, in *financev3.ClaimRequest) (*financev3.ClaimResponse, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if c, ok := f.claims[in.GetClaimId()]; ok {
+		if c.amount != in.GetAmount() || c.item != in.GetOpenItemId() {
+			return nil, refuse(finConflict, "claim "+in.GetClaimId())
+		}
+		return &financev3.ClaimResponse{Claim: f.proto(in.GetClaimId())}, nil
+	}
+	o, ok := f.items[in.GetOpenItemId()]
+	if !ok || o.Kind == "receivable" {
+		return nil, refuse(finState, "open item "+in.GetOpenItemId()+" is not claimed for a payment")
+	}
+	a, _ := new(big.Rat).SetString(o.Available)
+	b, _ := new(big.Rat).SetString(in.GetAmount())
+	if b.Cmp(a) > 0 {
+		return nil, refuse(finExceeds, "available "+o.Available)
+	}
+	f.claims[in.GetClaimId()] = &standInClaim{item: o.Id, amount: in.GetAmount(), state: "pending", expires: time.Now().Add(f.period)}
+	f.moveAvailable(o.Id, in.GetAmount(), -1)
+	return &financev3.ClaimResponse{Claim: f.proto(in.GetClaimId())}, nil
+}
+
+func (f *financeStandIn) Renew(_ context.Context, in *financev3.RenewRequest) (*financev3.RenewResponse, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	c, ok := f.claims[in.GetClaimId()]
+	if !ok || c.state != "pending" || f.lost[in.GetClaimId()] {
+		return nil, refuse(finState, "claim "+in.GetClaimId()+" is not pending")
+	}
+	f.renews++
+	c.expires = time.Now().Add(f.period)
+	return &financev3.RenewResponse{Claim: f.proto(in.GetClaimId())}, nil
+}
+
+func (f *financeStandIn) Confirm(_ context.Context, in *financev3.ConfirmRequest) (*financev3.ConfirmResponse, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	c, ok := f.claims[in.GetClaimId()]
+	if !ok || f.lost[in.GetClaimId()] || (c.state != "pending" && c.state != "confirmed") {
+		return nil, refuse(finState, "claim "+in.GetClaimId()+" is not held")
+	}
+	c.state = "confirmed"
+	return &financev3.ConfirmResponse{Claim: f.proto(in.GetClaimId())}, nil
+}
+
+func (f *financeStandIn) Release(_ context.Context, in *financev3.ReleaseRequest) (*financev3.ReleaseResponse, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	c, ok := f.claims[in.GetClaimId()]
+	if !ok {
+		return nil, refuse(finState, "no claim "+in.GetClaimId())
+	}
+	if c.state == "pending" || c.state == "confirmed" {
+		c.state = "released"
+		f.moveAvailable(c.item, c.amount, 1)
+	}
+	return &financev3.ReleaseResponse{Claim: f.proto(in.GetClaimId())}, nil
+}
+
+func (f *financeStandIn) Get(_ context.Context, in *financev3.GetRequest) (*financev3.GetResponse, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.claims[in.GetClaimId()]; !ok {
+		return nil, status.Error(codes.NotFound, "no claim")
+	}
+	return &financev3.GetResponse{Claim: f.proto(in.GetClaimId())}, nil
+}
+
+func (f *financeStandIn) DueItems(_ context.Context, in *financev3.DueItemsRequest) (*financev3.DueItemsResponse, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := &financev3.DueItemsResponse{}
+	for _, o := range f.items {
+		if o.LegalEntityId == in.GetLegalEntityId() && o.Kind != "receivable" && o.Available != "0.00" && o.Available != "0" &&
+			(in.GetKind() == "" || in.GetKind() == o.Kind) && (in.GetPartnerId() == "" || in.GetPartnerId() == o.PartnerId) &&
+			o.DueDate <= in.GetDueOnOrBefore() {
+			out.Items = append(out.Items, proto.Clone(o).(*financev3.OpenItem))
+		}
+	}
+	sort.Slice(out.Items, func(i, j int) bool {
+		return out.Items[i].DueDate+out.Items[i].Id < out.Items[j].DueDate+out.Items[j].Id
+	})
+	return out, nil
+}
+
+// claimFor makes another payer's pending claim on an item (its available balance goes down).
+func (f *financeStandIn) claimFor(item, amount string) {
+	_, err := f.Claim(context.Background(), &financev3.ClaimRequest{ClaimId: "other-" + item, OpenItemId: item, Amount: amount})
+	if err != nil {
+		panic(err)
+	}
+}
+
+// lose marks a claim lapsed: its renewal and its confirmation are refused.
+func (f *financeStandIn) lose(claim string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lost[claim] = true
+}
+
+func (f *financeStandIn) renewCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.renews
+}
+
+// state is a claim's state at the stand-in.
+func (f *financeStandIn) state(claim string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if c, ok := f.claims[claim]; ok {
+		return c.state
+	}
+	return ""
+}
+
+func (f *financeStandIn) available(item string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.items[item].Available
+}
 
 // salesStandIn is erp/sales' OrderService.Read on the orders the test sets (a receipt's order reference, RC01).
 type salesStandIn struct {

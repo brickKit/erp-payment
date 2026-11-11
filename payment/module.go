@@ -8,6 +8,7 @@ import (
 	core "github.com/brickKit/erp-payment/v3/internal/core"
 	orgunits "github.com/brickKit/erp-payment/v3/internal/orgunits"
 	receipts "github.com/brickKit/erp-payment/v3/internal/receipts"
+	requests "github.com/brickKit/erp-payment/v3/internal/requests"
 
 	"github.com/brickKit/be-sdk-go/v3/db"
 	"github.com/brickKit/be-sdk-go/v3/events"
@@ -52,18 +53,18 @@ func (m *Module) Routes(r *httpx.Routes) error {
 	add("POST", "/api/payment/receipts", core.OpReceiptRegister, h(receipts.RegisterReceipt))                                        // registerReceipt
 	add("GET", "/api/payment/receipts/:id", core.OpReceiptRead, h(receipts.GetReceipt))                                              // getReceipt
 	add("POST", "/api/payment/receipts/:id/reverse", core.OpReceiptReverse, h(receipts.ReverseReceipt))                              // reverseReceipt
-	add("GET", "/api/payment/proposals", core.OpRequestRead, core.Unsupported("listProposals"))                                      // listProposals
-	add("GET", "/api/payment/requests", core.OpRequestRead, core.Unsupported("listRequests"))                                        // listRequests
-	add("POST", "/api/payment/requests", core.OpRequestEdit, core.Unsupported("createRequest"))                                      // createRequest
-	add("GET", "/api/payment/requests/:id", core.OpRequestRead, core.Unsupported("getRequest"))                                      // getRequest
-	add("PATCH", "/api/payment/requests/:id", core.OpRequestEdit, core.Unsupported("updateRequest"))                                 // updateRequest
-	add("POST", "/api/payment/requests/:id/submit", core.OpRequestEdit, core.Unsupported("submitRequest"))                           // submitRequest
-	add("POST", "/api/payment/requests/:id/approve", core.OpRequestApprove, core.Unsupported("approveRequest"))                      // approveRequest
-	add("POST", "/api/payment/requests/:id/reject", core.OpRequestApprove, core.Unsupported("rejectRequest"))                        // rejectRequest
-	add("POST", "/api/payment/requests/:id/release", core.OpRequestExecute, core.Unsupported("releaseRequest"))                      // releaseRequest
-	add("POST", "/api/payment/requests/:id/execute", core.OpRequestExecute, core.Unsupported("executeRequest"))                      // executeRequest
-	add("POST", "/api/payment/requests/:id/return", core.OpRequestExecute, core.Unsupported("returnRequest"))                        // returnRequest
-	add("POST", "/api/payment/requests/:id/cancel", core.OpRequestEdit, core.Unsupported("cancelRequest"))                           // cancelRequest
+	add("GET", "/api/payment/proposals", core.OpRequestRead, h(requests.ListProposals))                                              // listProposals
+	add("GET", "/api/payment/requests", core.OpRequestRead, h(requests.ListRequests))                                                // listRequests
+	add("POST", "/api/payment/requests", core.OpRequestEdit, h(requests.CreateRequest))                                              // createRequest
+	add("GET", "/api/payment/requests/:id", core.OpRequestRead, h(requests.GetRequest))                                              // getRequest
+	add("PATCH", "/api/payment/requests/:id", core.OpRequestEdit, h(requests.UpdateRequest))                                         // updateRequest
+	add("POST", "/api/payment/requests/:id/submit", core.OpRequestEdit, requests.Action(m.b, requests.Submit))                       // submitRequest
+	add("POST", "/api/payment/requests/:id/approve", core.OpRequestApprove, requests.Action(m.b, requests.Approve))                  // approveRequest
+	add("POST", "/api/payment/requests/:id/reject", core.OpRequestApprove, requests.Action(m.b, requests.Reject))                    // rejectRequest
+	add("POST", "/api/payment/requests/:id/release", core.OpRequestExecute, requests.Action(m.b, requests.Release))                  // releaseRequest
+	add("POST", "/api/payment/requests/:id/execute", core.OpRequestExecute, requests.Action(m.b, requests.Execute))                  // executeRequest
+	add("POST", "/api/payment/requests/:id/return", core.OpRequestExecute, requests.Action(m.b, requests.Return))                    // returnRequest
+	add("POST", "/api/payment/requests/:id/cancel", core.OpRequestEdit, requests.Action(m.b, requests.Cancel))                       // cancelRequest
 	add("GET", "/api/payment/entries", core.OpEntryRead, core.Unsupported("listEntries"))                                            // listEntries
 	add("POST", "/api/payment/entries", core.OpEntryEdit, core.Unsupported("createEntry"))                                           // createEntry
 	add("GET", "/api/payment/entries/:id", core.OpEntryRead, core.Unsupported("getEntry"))                                           // getEntry
@@ -105,6 +106,8 @@ func (m *Module) Jobs(j *work.Jobs) error {
 		MaxAttempts: work.Unlimited, Handle: m.job(orgunits.RepairOrgUnits)})
 	j.Add(work.Job{Name: orgunits.JobRealignOrgUnits, Kind: work.Queue, Effect: work.IdempotentExternal,
 		MaxAttempts: work.Unlimited, Handle: m.job(orgunits.RealignOrgUnits)})
+	j.Add(work.Job{Name: requests.JobRenewClaim, Kind: work.Queue, Effect: work.IdempotentExternal,
+		MaxAttempts: work.Unlimited, Handle: m.job(requests.RenewClaim)})
 	return nil
 }
 

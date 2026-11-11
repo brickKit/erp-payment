@@ -48,6 +48,9 @@ var (
 		"The claim was made before with another amount")
 	ErrClaimState = errs.Define(ID, "CLAIM_STATE", errs.FailedPrecondition, 409, errs.RetryNo,
 		"The open item cannot be claimed for this payment")
+	// PR02: an open item that is not the payee's to be paid in this kind and currency (erp/finance's due items)
+	ErrOpenItem = errs.Define(ID, "OPEN_ITEM_NOT_PAYABLE", errs.FailedPrecondition, 409, errs.RetryNo,
+		"The open item is not one the payee is paid against in this kind and currency")
 	// PR04: a claim lapsed or was released before the request was released for payment
 	ErrClaimLost = errs.Define(ID, "CLAIM_LOST", errs.FailedPrecondition, 409, errs.RetryNo,
 		"A payment claim of the request is no longer held: submit the request again")
@@ -209,4 +212,15 @@ func Cmp(a, b string) int {
 	x, _, _ := apd.NewFromString(a)
 	y, _, _ := apd.NewFromString(b)
 	return x.Cmp(y)
+}
+
+// ClaimRefused says whether err is erp/finance's refusal of a claim command as masterdata answers it (PR04, PR08): the
+// claim is not held any more; anything else (finance not reachable) is not.
+func ClaimRefused(err error) bool {
+	for _, r := range []string{"CLAIM_EXCEEDS_AVAILABLE", "CLAIM_CONFLICT", "CLAIM_STATE"} {
+		if errs.Is(err, ID, r) {
+			return true
+		}
+	}
+	return false
 }

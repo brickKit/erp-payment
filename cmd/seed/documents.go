@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"math/big"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/brickKit/be-sdk-go/v3/seed"
@@ -67,24 +69,42 @@ func (s *seeder) receipts(token string) int {
 	return n
 }
 
-// requests makes a payment request for each of erp/finance's due payables, one state each in turn.
+// requests makes a payment request for each of erp/finance's due payables, one state each in turn. A request's
+// purpose carries its place in the turn (#n): a run that broke off moves the requests it made on by their places
+// first, then makes the missing ones (the proposals change as the first run claims, so places are not their order).
 func (s *seeder) requests() int {
 	wants := []string{"paid", "partial", "ready", "approved", "submitted", "draft", "rejected", "cancelled", "returned"}
+	made := map[string]bool{}
+	next := 0
+	existing := s.c.pages("/api/payment/requests?legal_entity_id="+s.e.id, "requests")
+	slices.Reverse(existing) // oldest first: a request made before places were written takes its place by its age
+	for i, r := range existing {
+		n, purpose := i, r["purpose"].(string)
+		if k := strings.LastIndex(purpose, "#"); k >= 0 {
+			if _, err := fmt.Sscanf(purpose[k:], "#%d", &n); err != nil {
+				continue // not the seed's
+			}
+		}
+		line := r["lines"].([]any)[0].(map[string]any)
+		made[line["open_item_id"].(string)] = true
+		s.request(r["id"].(string), line["amount"].(string), wants[n%len(wants)], n)
+		next = max(next, n+1)
+	}
 	items := s.c.pages("/api/payment/proposals?kind=payable&due_on_or_before=9999-12-31&legal_entity_id="+s.e.id, "items")
-	n := 0
-	for i, it := range items {
-		if it["currency"] != s.e.currency {
+	for _, it := range items {
+		if it["currency"] != s.e.currency || made[it["open_item_id"].(string)] {
 			continue
 		}
-		want := wants[n%len(wants)]
+		n := next
+		next++
 		body := map[string]any{"legal_entity_id": s.e.id, "kind": "payment", "payee_id": it["partner_id"],
-			"bank_account_id": s.e.accounts["基本户"], "purpose": prefix + "货款", "reference": it["source_number"],
-			"lines": []any{map[string]any{"open_item_id": it["open_item_id"], "amount": it["available"]}}}
-		r := s.c.must("POST", "/api/payment/requests", body, "Idempotency-Key", s.key("request", i))
-		s.request(r["id"].(string), it["available"].(string), want, n)
-		n++
+			"bank_account_id": s.e.accounts["基本户"], "purpose": fmt.Sprintf("%s货款 #%d", prefix, n),
+			"reference": it["source_number"],
+			"lines":     []any{map[string]any{"open_item_id": it["open_item_id"], "amount": it["available"]}}}
+		r := s.c.must("POST", "/api/payment/requests", body, "Idempotency-Key", s.key("request", n))
+		s.request(r["id"].(string), it["available"].(string), wants[n%len(wants)], n)
 	}
-	return n
+	return next
 }
 
 // request moves request id on to want from the state it is in.
@@ -95,7 +115,7 @@ func (s *seeder) request(id, amount, want string, n int) {
 		if body == nil {
 			body = map[string]any{}
 		}
-		c.must("POST", path+"/"+action, body)
+		c.granted("POST", path+"/"+action, body)
 	}
 	if want == "draft" {
 		return
@@ -161,7 +181,7 @@ func (s *seeder) entries() int {
 			s.c.must("POST", path+"/submit", map[string]any{})
 		}
 		if want != "draft" && state() == "submitted" {
-			s.lead.must("POST", path+"/approve", map[string]any{})
+			s.lead.granted("POST", path+"/approve", map[string]any{})
 		}
 		if want == "posted" && state() == "in_transit" {
 			s.c.must("POST", path+"/arrive", map[string]any{"arrived_on": today()})

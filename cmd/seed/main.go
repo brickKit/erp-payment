@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"time"
 
 	sdkauthz "github.com/brickKit/be-sdk-go/v3/authz"
 	"github.com/brickKit/be-sdk-go/v3/seed"
@@ -67,6 +68,17 @@ type client struct{ seed.Client }
 func (c client) must(method, path string, body any, header ...string) map[string]any {
 	out, err := c.Must(method, path, body, header...)
 	check(err)
+	return out
+}
+
+// granted is must for another account's first writes: while its grant has not reached the component yet the
+// request answers 403 or 404 (nothing written), and it is sent again for up to a minute.
+func (c client) granted(method, path string, body any, header ...string) map[string]any {
+	code, out, err := c.UntilGranted(time.Minute, method, path, body, header...)
+	check(err)
+	if code != 200 {
+		fail("%s %s: %d %v", method, path, code, out)
+	}
 	return out
 }
 

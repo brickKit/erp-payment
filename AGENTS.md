@@ -14,6 +14,7 @@
 | `payment/migrations/` | 表，整个组件一套（迁移顺序是全组件的，不按模块拆） |
 | `contract/` | 本组件发布的契约，单独的模块：`contract/proto/`、`contract/events/`（资金事实与会计事实只引用 `erp/finance` 的共享契约）、`contract/openapi.yaml` |
 | `docs/` | 设计（规则的正文；各层的 `AGENTS.md` 只指过去，不抄） |
+| `cmd/seed/` | 种子（`make seed`）：角色与出纳、财务主管两个账号的范围、三个法人的银行账户、按账单收款、按财务的应付付款（各种状态）、调拨与收付、CN01 基本户的对账单 |
 
 业务模块（`internal/` 下）：
 

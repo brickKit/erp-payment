@@ -48,8 +48,8 @@ github.com/brickKit/contract-infra-authz/v3 v3.0.0-alpha.6 h1:9Ju2Lp3HXFCc3FSF5o
 github.com/brickKit/contract-infra-authz/v3 v3.0.0-alpha.6/go.mod h1:21N0lZKoL1STxtsx5Yi9Wh8cJ32gtsQuVF52oxMWaps=
 github.com/brickKit/erp-finance/contract/v3 v3.0.0-alpha.3 h1:XyEd8GWhtJWRs3VHizUKsfFyrWgHfr2ljv9QMbMX/qM=
 github.com/brickKit/erp-finance/contract/v3 v3.0.0-alpha.3/go.mod h1:8yvRsMNoIdHpjMq8i7pmQAW7sXZAhZ+/LyPZxkqneOI=
-github.com/brickKit/erp-payment/contract/v3 v3.0.0-alpha.1 h1:VzcQJfwHbTspgRtBc7ccHVFkrcJK4Xd6lRSUBkjWlTU=
-github.com/brickKit/erp-payment/contract/v3 v3.0.0-alpha.1/go.mod h1:WfazIXeM9idKwBrSf4MXPjt4+QIFTc9O7t67lEA1r/0=
+github.com/brickKit/erp-payment/contract/v3 v3.0.0-alpha.2 h1:xhV/7M7dVYUBVDpaM9ftSh3uYKk18n0ndHabflYkiRM=
+github.com/brickKit/erp-payment/contract/v3 v3.0.0-alpha.2/go.mod h1:WfazIXeM9idKwBrSf4MXPjt4+QIFTc9O7t67lEA1r/0=
 github.com/brickKit/erp-sales/contract/v3 v3.0.0-alpha.3 h1:gl5iAFHJ/TewvgDjxH1cAwRIPqpnEe5PNynOMZ2AfKA=
 github.com/brickKit/erp-sales/contract/v3 v3.0.0-alpha.3/go.mod h1:nsC0/0ibd62y5sFKD0Sh5YQbW1O0N2387dV5sv3hRZA=
 github.com/brickKit/infra-audit/contract/v3 v3.0.0-alpha.2 h1:0snoszyg1imd9WGsK7I2H0lGNM6CKDOoE06D2jn/4G4=

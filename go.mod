@@ -5,15 +5,17 @@ go 1.27.0
 require (
 	github.com/brickKit/be-sdk-go/v3 v3.0.0-alpha.121
 	github.com/brickKit/erp-finance/contract/v3 v3.0.0-alpha.3
-	github.com/brickKit/erp-payment/contract/v3 v3.0.0-alpha.1
+	github.com/brickKit/erp-payment/contract/v3 v3.0.0-alpha.2
 	github.com/brickKit/erp-sales/contract/v3 v3.0.0-alpha.3
 	github.com/brickKit/mdm-currency/contract/v3 v3.0.0-alpha.2
 	github.com/brickKit/mdm-org/contract/v3 v3.0.0-alpha.3
 	github.com/brickKit/mdm-partner/contract/v3 v3.0.0-alpha.3
 	github.com/cockroachdb/apd/v3 v3.2.3
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.83.2
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
@@ -70,7 +72,6 @@ require (
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.59.0 // indirect
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/twpayne/go-geom v1.6.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
@@ -94,5 +95,4 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
-	google.golang.org/protobuf v1.36.12 // indirect
 )

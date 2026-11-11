@@ -83,7 +83,7 @@ paths:
     get:
       operationId: getBankAccount
       x-operation: erp.payment.bank_account.read
-      summary: The account; its whole number with erp.payment.bank_account.read_number
+      summary: The account; its whole number for a grant that lists the restricted field (read key erp.payment.bank_account.number)
       responses:
         '200':
           description: the account
@@ -1095,7 +1095,7 @@ components:
           type: string
         number:
           type: string
-          description: the whole number with erp.payment.bank_account.read_number, else its last four digits after ****
+          description: the whole number for a grant that lists it (read key erp.payment.bank_account.number), else its last four digits after ****
         currency:
           type: string
         state:

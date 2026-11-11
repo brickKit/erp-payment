@@ -76,7 +76,7 @@
 | PR07 | 取消：已付的不能取消（走 PR06）；`submitted`、`approved`、`ready` 的同时向财务释放认领（`Release`，幂等；已确认的认领由使用方释放，CL06）；取消审计 |
 | PR08 | 认领的续期：`submitted`、`approved` 的申请，每条认领在期限前由后台工作续期（`Renew`；在期限前一个小时排工作项，续期后按新期限再排；财务不可达时工作项重试）；续期被拒（认领已到期），工作项把申请退回草稿（原因写“付款认领已失效”，申请上看得到）、释放其余认领，要重新提交。`ready` 的认领已确认，不再续期 |
 
-拒绝的原因：状态不允许 `PAYMENT_STATE`；批准人或放行人是申请人 `APPROVER_IS_SUBMITTER`；认领被财务拒绝时照财务的原因（`CLAIM_EXCEEDS_AVAILABLE`、`CLAIM_CONFLICT`、`CLAIM_STATE`）；放行时认领已失效 `CLAIM_LOST`；财务不可达 `DEPENDENCY_UNAVAILABLE`（什么也没改，可以重试）；版本不对 `VERSION_CONFLICT`。
+拒绝的原因：状态不允许 `STATE_CONFLICT`；批准人或放行人是申请人 `APPROVER_IS_SUBMITTER`；认领被财务拒绝时照财务的原因（`CLAIM_EXCEEDS_AVAILABLE`、`CLAIM_CONFLICT`、`CLAIM_STATE`）；放行时认领已失效 `CLAIM_LOST`；财务不可达 `DEPENDENCY_UNAVAILABLE`（什么也没改，可以重试）；版本不对 `VERSION_CONFLICT`。
 
 ### 收款单
 
@@ -136,13 +136,13 @@
 - **外币**：账户的币种不是法人本位币时，事实带汇率快照（`mdm/currency` 的 `EffectiveRate`，按业务日期取，事务前取证）；本位币时汇率为空。付款申请的币种 = 账户 = 未清项的币种；财务首批的应付只有本位币（供应商票据与人工未清项都只收本位币），所以外币账户首批用于外币到账（财务分给同一币种的应收）与外币客户贷方余额的退款。
 - **规则键**：到账 `receipt`、付款 `payment`、退款 `refund`；冲正沿用原事实的规则键；调拨 `fund_transfer_out`、`fund_transfer_in`，手续费 `bank_charge`，利息 `bank_interest`（财务的规则目录）。
 - **过账日期**：等于业务日期；落在财务已关闭的月份时由财务顺延（PD01），首批本组件不封存。
-- **账号是受限字段**：列表与读取只显示后四位，有 `erp.payment.bank_account.read_number` 的人才看全（安全 07 的字段）。
+- **账号是受限字段**（安全 09a）：读取键 `erp.payment.bank_account.number`，授予里列出这个字段的人才看全，其他人只看到后四位。
 
 ## 命令与查询
 
 | 命令或查询 | 面 | 操作 |
 | --- | --- | --- |
-| 公司银行账户：列表、读取、新建、修改（名称、状态） | 用户面 | `erp.payment.bank_account.read`、`.manage`；全账号 `.read_number` |
+| 公司银行账户：列表、读取、新建、修改（名称、状态） | 用户面 | `erp.payment.bank_account.read`、`.manage`；全账号要授予里列出受限字段（读取键 `erp.payment.bank_account.number`） |
 | 收款单：列表、读取、登记、冲正 | 用户面 | `erp.payment.receipt.read`、`.register`、`.reverse` |
 | 付款建议（财务的到期未清项） | 用户面 | `erp.payment.request.read` |
 | 付款申请：列表、读取、新建、修改、提交、批准、驳回、放行、执行、退回、取消 | 用户面 | `erp.payment.request.read`、`.edit`（新建、修改、提交、取消）、`.approve`（批准、驳回）、`.execute`（放行、执行、退回） |

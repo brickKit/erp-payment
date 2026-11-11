@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brickkit.dev/erp-payment/events/erp.payment.accounting_fact.v1.schema.json",
+  "title": "erp.payment.accounting_fact.v1",
+  "description": "erp/payment's accounting facts (a transfer's going out and arrival, bank charges, interest) on the stream erp.payment, in erp/finance's shared accounting fact contract; an incremental fact deduped by fact_id.",
+  "$ref": "https://brickkit.dev/erp-finance/events/shared/accounting_fact.v1.schema.json"
+}

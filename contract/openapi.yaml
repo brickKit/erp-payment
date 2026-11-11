@@ -1,0 +1,1813 @@
+openapi: 3.1.0
+info:
+  title: erp/payment user surface
+  version: 3.0.0
+  description: 'The results of money (D47), registered offline in this version: company bank accounts, receipts, payment requests
+    that claim erp/finance''s open items when submitted and confirm the claims when released (protocol 05), transfers with
+    bank charges and interest, and the manual reconciliation of bank statements. Every route needs a platform access token
+    and the operation in x-operation; what the caller may not see answers 404 (every resource carries the legal entity dimension,
+    payment requests the department too). Errors are application/problem+json with a reason. Lists page by cursor only (protocol
+    14). Amounts are decimal strings. The fund and accounting facts are erp/finance''s shared contracts (events/); the read
+    of the incremental facts is on the system surface (proto).'
+paths:
+  /api/payment/bank-accounts:
+    get:
+      operationId: listBankAccounts
+      x-operation: erp.payment.bank_account.read
+      summary: One page by name; the number shows its last four digits only
+      parameters:
+      - name: legal_entity_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: currency
+        in: query
+        schema:
+          type: string
+          pattern: ^[A-Z]{3}$
+      - name: state
+        in: query
+        schema:
+          enum:
+          - active
+          - inactive
+      - name: q
+        in: query
+        schema:
+          type: string
+        description: the name or the bank
+      - $ref: '#/components/parameters/cursor'
+      - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: one page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - bank_accounts
+                - next_cursor
+                properties:
+                  bank_accounts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BankAccount'
+                  next_cursor:
+                    type: string
+        default:
+          $ref: '#/components/responses/problem'
+    post:
+      operationId: createBankAccount
+      x-operation: erp.payment.bank_account.manage
+      summary: A company bank account (Idempotency-Key)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankAccountIn'
+      responses:
+        '200':
+          description: the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccount'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/bank-accounts/{id}:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    get:
+      operationId: getBankAccount
+      x-operation: erp.payment.bank_account.read
+      summary: The account; its whole number with erp.payment.bank_account.read_number
+      responses:
+        '200':
+          description: the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccount'
+        default:
+          $ref: '#/components/responses/problem'
+    patch:
+      operationId: updateBankAccount
+      x-operation: erp.payment.bank_account.manage
+      summary: The name, the state; by version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankAccountPatch'
+      responses:
+        '200':
+          description: the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccount'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/bank-accounts/{id}/reconciliation:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    get:
+      operationId: getReconciliation
+      x-operation: erp.payment.statement.read
+      summary: The account's reconciliation over a date range
+      parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date
+        required: true
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date
+        required: true
+      responses:
+        '200':
+          description: the reconciliation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reconciliation'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/receipts:
+    get:
+      operationId: listReceipts
+      x-operation: erp.payment.receipt.read
+      summary: One page, newest first
+      parameters:
+      - name: legal_entity_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: bank_account_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: payer_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: state
+        in: query
+        schema:
+          enum:
+          - received
+          - reversed
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: q
+        in: query
+        schema:
+          type: string
+        description: the number or the bank reference
+      - $ref: '#/components/parameters/cursor'
+      - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: one page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - receipts
+                - next_cursor
+                properties:
+                  receipts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Receipt'
+                  next_cursor:
+                    type: string
+        default:
+          $ref: '#/components/responses/problem'
+    post:
+      operationId: registerReceipt
+      x-operation: erp.payment.receipt.register
+      summary: 'Register money received (Idempotency-Key; RC01): the fund fact goes out'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReceiptIn'
+      responses:
+        '200':
+          description: the receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/receipts/{id}:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    get:
+      operationId: getReceipt
+      x-operation: erp.payment.receipt.read
+      summary: The receipt
+      responses:
+        '200':
+          description: the receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/receipts/{id}/reverse:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: reverseReceipt
+      x-operation: erp.payment.receipt.reverse
+      summary: 'Reverse with a reason (RC02): the reversing fund fact goes out'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+      responses:
+        '200':
+          description: the receipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/proposals:
+    get:
+      operationId: listProposals
+      x-operation: erp.payment.request.read
+      summary: erp/finance's due open items with an available balance (its DueItems), for payment requests
+      parameters:
+      - name: legal_entity_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: kind
+        in: query
+        schema:
+          enum:
+          - payable
+          - credit_balance
+      - name: partner_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: due_on_or_before
+        in: query
+        schema:
+          type: string
+          format: date
+        description: 'default: today'
+      - $ref: '#/components/parameters/cursor'
+      - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: one page by due date
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - next_cursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DueItem'
+                  next_cursor:
+                    type: string
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/requests:
+    get:
+      operationId: listRequests
+      x-operation: erp.payment.request.read
+      summary: One page, newest first
+      parameters:
+      - name: legal_entity_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: payee_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: state
+        in: query
+        schema:
+          enum:
+          - draft
+          - submitted
+          - approved
+          - ready
+          - paid
+          - returned
+          - cancelled
+      - name: department_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: q
+        in: query
+        schema:
+          type: string
+        description: the number or the reference
+      - $ref: '#/components/parameters/cursor'
+      - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: one page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - requests
+                - next_cursor
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentRequest'
+                  next_cursor:
+                    type: string
+        default:
+          $ref: '#/components/responses/problem'
+    post:
+      operationId: createRequest
+      x-operation: erp.payment.request.edit
+      summary: A payment request draft (Idempotency-Key; PR01)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequestIn'
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/requests/{id}:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    get:
+      operationId: getRequest
+      x-operation: erp.payment.request.read
+      summary: The request with its lines and claims
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+    patch:
+      operationId: updateRequest
+      x-operation: erp.payment.request.edit
+      summary: Change a draft (its whole lines), by version (PR01)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequestIn'
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/requests/{id}/submit:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: submitRequest
+      x-operation: erp.payment.request.edit
+      summary: 'Submit: claim every line''s open item at erp/finance (PR02)'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Versioned'
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/requests/{id}/approve:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: approveRequest
+      x-operation: erp.payment.request.approve
+      summary: Approve; not by the applicant (PR03)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Versioned'
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/requests/{id}/reject:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: rejectRequest
+      x-operation: erp.payment.request.approve
+      summary: Reject back to draft with a reason; the claims released (PR03)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/requests/{id}/release:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: releaseRequest
+      x-operation: erp.payment.request.execute
+      summary: 'Release for payment: confirm the claims before the money goes out; not by the applicant (PR04)'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Versioned'
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/requests/{id}/execute:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: executeRequest
+      x-operation: erp.payment.request.execute
+      summary: 'Register the payment made (PR05): the fund fact goes out'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Execution'
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/requests/{id}/return:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: returnRequest
+      x-operation: erp.payment.request.execute
+      summary: 'The money did not go out or came back: reverse with a reason (PR06)'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/requests/{id}/cancel:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: cancelRequest
+      x-operation: erp.payment.request.edit
+      summary: Cancel before it is paid; the claims released (PR07)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Versioned'
+      responses:
+        '200':
+          description: the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentRequest'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/entries:
+    get:
+      operationId: listEntries
+      x-operation: erp.payment.entry.read
+      summary: One page, newest first
+      parameters:
+      - name: legal_entity_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: bank_account_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: kind
+        in: query
+        schema:
+          enum:
+          - transfer
+          - charge
+          - interest
+      - name: state
+        in: query
+        schema:
+          enum:
+          - draft
+          - submitted
+          - in_transit
+          - posted
+          - cancelled
+      - $ref: '#/components/parameters/cursor'
+      - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: one page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - entries
+                - next_cursor
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BankEntry'
+                  next_cursor:
+                    type: string
+        default:
+          $ref: '#/components/responses/problem'
+    post:
+      operationId: createEntry
+      x-operation: erp.payment.entry.edit
+      summary: A transfer, a bank charge or interest, draft (Idempotency-Key; BE01)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankEntryIn'
+      responses:
+        '200':
+          description: the entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankEntry'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/entries/{id}:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    get:
+      operationId: getEntry
+      x-operation: erp.payment.entry.read
+      summary: The entry
+      responses:
+        '200':
+          description: the entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankEntry'
+        default:
+          $ref: '#/components/responses/problem'
+    patch:
+      operationId: updateEntry
+      x-operation: erp.payment.entry.edit
+      summary: Change a draft, by version (BE01)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankEntryIn'
+      responses:
+        '200':
+          description: the entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankEntry'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/entries/{id}/submit:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: submitEntry
+      x-operation: erp.payment.entry.edit
+      summary: Submit for approval (BE02)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Versioned'
+      responses:
+        '200':
+          description: the entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankEntry'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/entries/{id}/approve:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: approveEntry
+      x-operation: erp.payment.entry.approve
+      summary: 'Approve and post; not by the maker (BE02): a transfer goes out into the money in transit'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Versioned'
+      responses:
+        '200':
+          description: the entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankEntry'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/entries/{id}/reject:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: rejectEntry
+      x-operation: erp.payment.entry.approve
+      summary: Reject back to draft with a reason (BE02)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+      responses:
+        '200':
+          description: the entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankEntry'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/entries/{id}/arrive:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: arriveEntry
+      x-operation: erp.payment.entry.edit
+      summary: A transfer arrived in the other account (BE03)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Arrival'
+      responses:
+        '200':
+          description: the entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankEntry'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/entries/{id}/cancel:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: cancelEntry
+      x-operation: erp.payment.entry.edit
+      summary: Cancel before posting (BE04)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Versioned'
+      responses:
+        '200':
+          description: the entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankEntry'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/statement-lines:
+    get:
+      operationId: listStatementLines
+      x-operation: erp.payment.statement.read
+      summary: One page by date
+      parameters:
+      - name: bank_account_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: state
+        in: query
+        schema:
+          enum:
+          - unmatched
+          - matched
+          - resolved
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date
+      - $ref: '#/components/parameters/cursor'
+      - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: one page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - lines
+                - next_cursor
+                properties:
+                  lines:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StatementLine'
+                  next_cursor:
+                    type: string
+        default:
+          $ref: '#/components/responses/problem'
+    post:
+      operationId: registerStatementLines
+      x-operation: erp.payment.statement.reconcile
+      summary: Register a bank statement's lines (Idempotency-Key; BR01); each is matched once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatementLinesIn'
+      responses:
+        '200':
+          description: the lines registered and the ones skipped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementLinesOut'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/statement-lines/{id}/match:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: matchStatementLine
+      x-operation: erp.payment.statement.reconcile
+      summary: Match a document (BR02)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchIn'
+      responses:
+        '200':
+          description: the line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementLine'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/statement-lines/{id}/unmatch:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: unmatchStatementLine
+      x-operation: erp.payment.statement.reconcile
+      summary: Undo a match (BR02)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Versioned'
+      responses:
+        '200':
+          description: the line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementLine'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/statement-lines/{id}/resolve:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: resolveStatementLine
+      x-operation: erp.payment.statement.reconcile
+      summary: A difference handled, with how (BR03)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reason'
+      responses:
+        '200':
+          description: the line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementLine'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/statement-lines/{id}/reopen:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: reopenStatementLine
+      x-operation: erp.payment.statement.reconcile
+      summary: Reopen a resolved difference (BR03)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Versioned'
+      responses:
+        '200':
+          description: the line
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementLine'
+        default:
+          $ref: '#/components/responses/problem'
+  /api/payment/statement-lines/{id}/create-entry:
+    parameters:
+    - $ref: '#/components/parameters/id'
+    post:
+      operationId: createEntryFromStatementLine
+      x-operation: erp.payment.statement.reconcile
+      summary: A bank charge (money out) or interest (money in) draft from the line (Idempotency-Key; BR04); also needs erp.payment.entry.edit
+      responses:
+        '200':
+          description: the entry draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankEntry'
+        default:
+          $ref: '#/components/responses/problem'
+components:
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+  responses:
+    problem:
+      description: an error (application/problem+json with reason)
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            required:
+            - reason
+            properties:
+              reason:
+                type: string
+              detail:
+                type: string
+  schemas:
+    Decimal:
+      type: string
+      pattern: ^[0-9]+(\.[0-9]+)?$
+      description: a decimal string
+    Signed:
+      type: string
+      pattern: ^-?[0-9]+(\.[0-9]+)?$
+      description: 'a signed decimal string: money in positive, out negative'
+    Versioned:
+      type: object
+      additionalProperties: false
+      properties:
+        version:
+          type: integer
+          description: 'the version the change is made on; omitted: the current one'
+    Reason:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+        version:
+          type: integer
+    BankAccountIn:
+      type: object
+      additionalProperties: false
+      required:
+      - legal_entity_id
+      - name
+      - bank
+      - number
+      - currency
+      properties:
+        legal_entity_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        bank:
+          type: string
+          minLength: 1
+          description: the bank and branch
+        number:
+          type: string
+          pattern: ^[0-9A-Z -]{4,40}$
+          description: the account number (IBAN or local); a restricted field
+        currency:
+          type: string
+          pattern: ^[A-Z]{3}$
+    BankAccountPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+        state:
+          enum:
+          - active
+          - inactive
+        version:
+          type: integer
+    BankAccount:
+      type: object
+      required:
+      - id
+      - legal_entity_id
+      - name
+      - bank
+      - number
+      - currency
+      - state
+      - version
+      - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        legal_entity_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        bank:
+          type: string
+        number:
+          type: string
+          description: the whole number with erp.payment.bank_account.read_number, else its last four digits after ****
+        currency:
+          type: string
+        state:
+          enum:
+          - active
+          - inactive
+        version:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+    ReceiptIn:
+      type: object
+      additionalProperties: false
+      required:
+      - legal_entity_id
+      - bank_account_id
+      - amount
+      - received_on
+      - bank_reference
+      properties:
+        legal_entity_id:
+          type: string
+          format: uuid
+        bank_account_id:
+          type: string
+          format: uuid
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        received_on:
+          type: string
+          format: date
+        bank_reference:
+          type: string
+          minLength: 1
+          description: unique in the account among receipts not reversed
+        payer_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: 'a partner; null: not known (finance holds it in suspense)'
+        order_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: an erp/sales order of the payer (a prepayment's reference)
+        description:
+          type: string
+    Receipt:
+      type: object
+      required:
+      - id
+      - number
+      - legal_entity_id
+      - bank_account_id
+      - payer_id
+      - currency
+      - amount
+      - received_on
+      - bank_reference
+      - order_id
+      - description
+      - state
+      - fact_id
+      - maker_id
+      - reason
+      - version
+      - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        legal_entity_id:
+          type: string
+          format: uuid
+        bank_account_id:
+          type: string
+          format: uuid
+        payer_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        currency:
+          type: string
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        received_on:
+          type: string
+          format: date
+        bank_reference:
+          type: string
+        order_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        description:
+          type:
+          - string
+          - 'null'
+        state:
+          enum:
+          - received
+          - reversed
+        fact_id:
+          type: string
+          description: the fund fact it published
+        maker_id:
+          type: string
+        reason:
+          type:
+          - string
+          - 'null'
+          description: the reversal's
+        version:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+    DueItem:
+      type: object
+      required:
+      - open_item_id
+      - kind
+      - partner_id
+      - currency
+      - available
+      - due_date
+      - source_number
+      properties:
+        open_item_id:
+          type: string
+          format: uuid
+        kind:
+          enum:
+          - payable
+          - credit_balance
+        partner_id:
+          type: string
+          format: uuid
+        currency:
+          type: string
+        available:
+          $ref: '#/components/schemas/Decimal'
+        due_date:
+          type: string
+          format: date
+        source_number:
+          type:
+          - string
+          - 'null'
+          description: the supplier invoice's or the source document's number
+    RequestLineIn:
+      type: object
+      additionalProperties: false
+      required:
+      - amount
+      properties:
+        open_item_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: erp/finance's open item; null only without erp/finance
+        amount:
+          $ref: '#/components/schemas/Decimal'
+    PaymentRequestIn:
+      type: object
+      additionalProperties: false
+      required:
+      - legal_entity_id
+      - kind
+      - payee_id
+      - bank_account_id
+      - purpose
+      - lines
+      properties:
+        legal_entity_id:
+          type: string
+          format: uuid
+        kind:
+          enum:
+          - payment
+          - refund
+        payee_id:
+          type: string
+          format: uuid
+        bank_account_id:
+          type: string
+          format: uuid
+        purpose:
+          type: string
+          minLength: 1
+        reference:
+          type: string
+        department_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        version:
+          type: integer
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/RequestLineIn'
+    RequestLine:
+      type: object
+      required:
+      - id
+      - open_item_id
+      - amount
+      - claim_id
+      - claim_expires_at
+      - paid
+      properties:
+        id:
+          type: string
+          format: uuid
+        open_item_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        claim_id:
+          type:
+          - string
+          - 'null'
+          description: while submitted, approved or ready
+        claim_expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: a pending claim's; null once confirmed
+        paid:
+          $ref: '#/components/schemas/Decimal'
+    PaymentRequest:
+      type: object
+      required:
+      - id
+      - number
+      - legal_entity_id
+      - kind
+      - payee_id
+      - bank_account_id
+      - currency
+      - amount
+      - purpose
+      - reference
+      - department_id
+      - state
+      - applicant_id
+      - approver_id
+      - releaser_id
+      - paid_amount
+      - paid_on
+      - bank_reference
+      - fact_id
+      - reason
+      - lines
+      - version
+      - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        legal_entity_id:
+          type: string
+          format: uuid
+        kind:
+          enum:
+          - payment
+          - refund
+        payee_id:
+          type: string
+          format: uuid
+        bank_account_id:
+          type: string
+          format: uuid
+        currency:
+          type: string
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        purpose:
+          type: string
+        reference:
+          type:
+          - string
+          - 'null'
+        department_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        state:
+          enum:
+          - draft
+          - submitted
+          - approved
+          - ready
+          - paid
+          - returned
+          - cancelled
+        applicant_id:
+          type:
+          - string
+          - 'null'
+          description: who submitted it
+        approver_id:
+          type:
+          - string
+          - 'null'
+        releaser_id:
+          type:
+          - string
+          - 'null'
+        paid_amount:
+          oneOf:
+          - $ref: '#/components/schemas/Decimal'
+          - type: 'null'
+        paid_on:
+          type:
+          - string
+          - 'null'
+          format: date
+        bank_reference:
+          type:
+          - string
+          - 'null'
+        fact_id:
+          type:
+          - string
+          - 'null'
+          description: the payment's fund fact
+        reason:
+          type:
+          - string
+          - 'null'
+          description: the last rejection's, lapse's or return's
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestLine'
+        version:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+    Execution:
+      type: object
+      additionalProperties: false
+      required:
+      - paid_amount
+      - paid_on
+      - bank_reference
+      properties:
+        paid_amount:
+          $ref: '#/components/schemas/Decimal'
+        paid_on:
+          type: string
+          format: date
+        bank_reference:
+          type: string
+          minLength: 1
+        version:
+          type: integer
+        lines:
+          type: array
+          description: 'each line''s paid amount (summing to paid_amount); omitted: in the lines'' order'
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - line_id
+            - paid
+            properties:
+              line_id:
+                type: string
+                format: uuid
+              paid:
+                $ref: '#/components/schemas/Decimal'
+    BankEntryIn:
+      type: object
+      additionalProperties: false
+      required:
+      - legal_entity_id
+      - kind
+      - bank_account_id
+      - amount
+      - entry_date
+      - description
+      properties:
+        legal_entity_id:
+          type: string
+          format: uuid
+        kind:
+          enum:
+          - transfer
+          - charge
+          - interest
+        bank_account_id:
+          type: string
+          format: uuid
+          description: a transfer's from-account
+        to_bank_account_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: a transfer's to-account
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        entry_date:
+          type: string
+          format: date
+        description:
+          type: string
+          minLength: 1
+        version:
+          type: integer
+    Arrival:
+      type: object
+      additionalProperties: false
+      required:
+      - arrived_on
+      properties:
+        arrived_on:
+          type: string
+          format: date
+        version:
+          type: integer
+    BankEntry:
+      type: object
+      required:
+      - id
+      - number
+      - legal_entity_id
+      - kind
+      - bank_account_id
+      - to_bank_account_id
+      - currency
+      - amount
+      - entry_date
+      - arrived_on
+      - description
+      - state
+      - maker_id
+      - approver_id
+      - statement_line_id
+      - reason
+      - version
+      - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        legal_entity_id:
+          type: string
+          format: uuid
+        kind:
+          enum:
+          - transfer
+          - charge
+          - interest
+        bank_account_id:
+          type: string
+          format: uuid
+        to_bank_account_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        currency:
+          type: string
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        entry_date:
+          type: string
+          format: date
+        arrived_on:
+          type:
+          - string
+          - 'null'
+          format: date
+        description:
+          type: string
+        state:
+          enum:
+          - draft
+          - submitted
+          - in_transit
+          - posted
+          - cancelled
+        maker_id:
+          type: string
+        approver_id:
+          type:
+          - string
+          - 'null'
+        statement_line_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: the statement line it was made from
+        reason:
+          type:
+          - string
+          - 'null'
+        version:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+    StatementLineIn:
+      type: object
+      additionalProperties: false
+      required:
+      - booked_on
+      - amount
+      properties:
+        booked_on:
+          type: string
+          format: date
+        amount:
+          $ref: '#/components/schemas/Signed'
+        bank_reference:
+          type:
+          - string
+          - 'null'
+        text:
+          type: string
+    StatementLinesIn:
+      type: object
+      additionalProperties: false
+      required:
+      - bank_account_id
+      - lines
+      properties:
+        bank_account_id:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/StatementLineIn'
+    StatementLinesOut:
+      type: object
+      required:
+      - lines
+      - skipped
+      properties:
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementLine'
+        skipped:
+          type: array
+          items:
+            type: string
+          description: the bank references registered already
+    MatchIn:
+      type: object
+      additionalProperties: false
+      required:
+      - document_type
+      - document_id
+      properties:
+        document_type:
+          enum:
+          - receipt
+          - payment_request
+          - bank_entry
+        document_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+    StatementLine:
+      type: object
+      required:
+      - id
+      - bank_account_id
+      - booked_on
+      - amount
+      - bank_reference
+      - text
+      - state
+      - matched
+      - note
+      - version
+      - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        bank_account_id:
+          type: string
+          format: uuid
+        booked_on:
+          type: string
+          format: date
+        amount:
+          $ref: '#/components/schemas/Signed'
+        bank_reference:
+          type:
+          - string
+          - 'null'
+        text:
+          type:
+          - string
+          - 'null'
+        state:
+          enum:
+          - unmatched
+          - matched
+          - resolved
+        matched:
+          type:
+          - object
+          - 'null'
+          required:
+          - document_type
+          - document_id
+          - number
+          properties:
+            document_type:
+              enum:
+              - receipt
+              - payment_request
+              - bank_entry
+            document_id:
+              type: string
+              format: uuid
+            number:
+              type: string
+        note:
+          type:
+          - string
+          - 'null'
+          description: how a difference was handled
+        version:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+    Reconciliation:
+      type: object
+      required:
+      - bank_account_id
+      - from
+      - to
+      - statement_total
+      - matched_total
+      - unmatched_total
+      - unmatched_documents
+      properties:
+        bank_account_id:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        statement_total:
+          $ref: '#/components/schemas/Signed'
+        matched_total:
+          $ref: '#/components/schemas/Signed'
+        unmatched_total:
+          $ref: '#/components/schemas/Signed'
+        unmatched_documents:
+          type: array
+          description: this side's documents in the range no statement line matched
+          items:
+            type: object
+            required:
+            - document_type
+            - document_id
+            - number
+            - amount
+            - date
+            properties:
+              document_type:
+                enum:
+                - receipt
+                - payment_request
+                - bank_entry
+              document_id:
+                type: string
+                format: uuid
+              number:
+                type: string
+              amount:
+                $ref: '#/components/schemas/Signed'
+              date:
+                type: string
+                format: date

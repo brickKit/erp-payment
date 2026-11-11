@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brickkit.dev/erp-payment/events/erp.receipt.changed.v1.schema.json",
+  "title": "erp.receipt.changed.v1",
+  "description": "A receipt's full state (overwriting, by version).",
+  "type": "object",
+  "required": [
+    "id",
+    "number",
+    "legal_entity_id",
+    "bank_account_id",
+    "payer_id",
+    "currency",
+    "amount",
+    "received_on",
+    "bank_reference",
+    "order_id",
+    "description",
+    "state",
+    "fact_id",
+    "maker_id",
+    "reason",
+    "version",
+    "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "number": {
+      "type": "string"
+    },
+    "legal_entity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "bank_account_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "payer_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "description": "a decimal string"
+    },
+    "received_on": {
+      "type": "string",
+      "format": "date"
+    },
+    "bank_reference": {
+      "type": "string"
+    },
+    "order_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state": {
+      "enum": [
+        "received",
+        "reversed"
+      ]
+    },
+    "fact_id": {
+      "type": "string",
+      "description": "the fund fact it published"
+    },
+    "maker_id": {
+      "type": "string"
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "the reversal's"
+    },
+    "version": {
+      "type": "integer"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

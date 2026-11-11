@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brickkit.dev/erp-payment/events/erp.payment.fund_fact.v1.schema.json",
+  "title": "erp.payment.fund_fact.v1",
+  "description": "erp/payment's fund facts (receipts, payments, refunds and their reversals) on the stream erp.payment, in erp/finance's shared fund fact contract (contract/v3.0.0-alpha.3 and later); an incremental fact deduped by fact_id.",
+  "$ref": "https://brickkit.dev/erp-finance/events/shared/fund_fact.v1.schema.json"
+}

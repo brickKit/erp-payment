@@ -1,0 +1,31 @@
+// The system surface of erp/payment: the read of this component's incremental facts by identity (protocol 05's common
+// rules): the fund facts and accounting facts it publishes for erp/finance. Callers use their service identity; it
+// never filters by a user. The user surface is REST (../../../../../openapi.yaml); the event payloads are
+// ../../../../../events/ (the fund and accounting facts refer to erp/finance's shared contracts).
+syntax = "proto3";
+
+package be.erp.payment.v3;
+
+option go_package = "github.com/brickKit/erp-payment/contract/v3/gen/go/be/erp/payment/v3;paymentv3";
+
+// FactService reads back this component's incremental facts by their identities (a consumer that missed one).
+service FactService {
+  rpc Read(ReadRequest) returns (ReadResponse);
+}
+
+message ReadRequest {
+  repeated string fact_ids = 1;
+}
+
+message Fact {
+  string fact_id = 1;
+  // the event type, e.g. erp.payment.fund_fact.v1; empty when no such fact
+  string type = 2;
+  // the event payload (JSON, the event's schema)
+  bytes data = 3;
+}
+
+message ReadResponse {
+  // in the order asked; a fact unknown here has an empty type
+  repeated Fact facts = 1;
+}

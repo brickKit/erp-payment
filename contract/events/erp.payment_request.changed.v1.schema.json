@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brickkit.dev/erp-payment/events/erp.payment_request.changed.v1.schema.json",
+  "title": "erp.payment_request.changed.v1",
+  "description": "A payment request's full state with its lines and claims (overwriting, by version); the bank account by its identity only.",
+  "type": "object",
+  "required": [
+    "id",
+    "number",
+    "legal_entity_id",
+    "kind",
+    "payee_id",
+    "bank_account_id",
+    "currency",
+    "amount",
+    "purpose",
+    "reference",
+    "department_id",
+    "state",
+    "applicant_id",
+    "approver_id",
+    "releaser_id",
+    "paid_amount",
+    "paid_on",
+    "bank_reference",
+    "fact_id",
+    "reason",
+    "lines",
+    "version",
+    "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "number": {
+      "type": "string"
+    },
+    "legal_entity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "kind": {
+      "enum": [
+        "payment",
+        "refund"
+      ]
+    },
+    "payee_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "bank_account_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "description": "a decimal string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "reference": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "department_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "submitted",
+        "approved",
+        "ready",
+        "paid",
+        "returned",
+        "cancelled"
+      ]
+    },
+    "applicant_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "who submitted it"
+    },
+    "approver_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "releaser_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "paid_amount": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)?$",
+          "description": "a decimal string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "paid_on": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "bank_reference": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "fact_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "the payment's fund fact"
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "the last rejection's, lapse's or return's"
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "open_item_id",
+          "amount",
+          "claim_id",
+          "claim_expires_at",
+          "paid"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "open_item_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "a decimal string"
+          },
+          "claim_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "while submitted, approved or ready"
+          },
+          "claim_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "a pending claim's; null once confirmed"
+          },
+          "paid": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "a decimal string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "version": {
+      "type": "integer"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

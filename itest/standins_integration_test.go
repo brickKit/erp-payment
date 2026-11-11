@@ -15,6 +15,8 @@ import (
 	currencyv3 "github.com/brickKit/mdm-currency/contract/v3/gen/go/be/mdm/currency/v3"
 	orgv3 "github.com/brickKit/mdm-org/contract/v3/gen/go/be/mdm/org/v3"
 	partnerv3 "github.com/brickKit/mdm-partner/contract/v3/gen/go/be/mdm/partner/v3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // --- mdm/org: legal entities and departments ---
@@ -101,6 +103,7 @@ func (p *partnerStandIn) Read(_ context.Context, in *partnerv3.ReadRequest) (*pa
 
 type currencyStandIn struct {
 	currencyv3.UnimplementedSourceServiceServer
+	currencyv3.UnimplementedRateServiceServer
 }
 
 func (currencyStandIn) Read(_ context.Context, in *currencyv3.ReadRequest) (*currencyv3.ReadResponse, error) {
@@ -130,4 +133,37 @@ type salesStandIn struct {
 	salesv3.UnimplementedOrderServiceServer
 	mu     sync.Mutex
 	orders map[string]map[string]any
+}
+
+// EffectiveRate answers USD to CNY at 7.1 on the date asked (a foreign account's receipts and payments, RC01).
+func (currencyStandIn) EffectiveRate(_ context.Context, in *currencyv3.EffectiveRateRequest) (*currencyv3.EffectiveRateResponse, error) {
+	if in.GetFromCurrency() != "USD" || in.GetToCurrency() != "CNY" {
+		return nil, status.Error(codes.NotFound, "no rate "+in.GetFromCurrency()+"/"+in.GetToCurrency())
+	}
+	return &currencyv3.EffectiveRateResponse{Id: "0190f3a1-0000-7000-8000-00000000f001", Version: 1, Rate: "7.1",
+		RateDate: in.GetDate(), RateType: in.GetRateType(), FromCurrency: "USD", ToCurrency: "CNY"}, nil
+}
+
+// Read answers the orders the test set, as erp.sales_order.changed.v1 carries them (the fields a receipt checks).
+func (s *salesStandIn) Read(_ context.Context, in *salesv3.ReadRequest) (*salesv3.ReadResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := &salesv3.ReadResponse{}
+	for _, id := range in.GetIds() {
+		o, ok := s.orders[id]
+		if !ok {
+			out.Results = append(out.Results, &salesv3.ReadResult{Id: id, State: salesv3.ReadState_READ_STATE_NOT_FOUND})
+			continue
+		}
+		data, _ := json.Marshal(o)
+		out.Results = append(out.Results, &salesv3.ReadResult{Id: id, State: salesv3.ReadState_READ_STATE_EXISTS, Version: 1, Data: data})
+	}
+	return out, nil
+}
+
+func (s *salesStandIn) set(id, legalEntity, customer string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.orders[id] = map[string]any{"id": id, "number": "SO-" + id[:6], "legal_entity_id": legalEntity, "customer_id": customer,
+		"state": "confirmed", "currency": "CNY"}
 }

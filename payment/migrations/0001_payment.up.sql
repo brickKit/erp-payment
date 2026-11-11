@@ -17,3 +17,49 @@ CREATE TABLE payment_fact (
     recorded_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (fact_id, type)
 );
+
+-- A legal entity's company bank account (docs/design.md; internal/bankaccounts). The number is a restricted field.
+CREATE TABLE bank_account (
+    id              uuid PRIMARY KEY,
+    legal_entity_id uuid NOT NULL,
+    name            text NOT NULL,
+    bank            text NOT NULL,
+    number          text NOT NULL,
+    currency        text NOT NULL,
+    state           text NOT NULL DEFAULT 'active' CHECK (state IN ('active', 'inactive')),
+    search          text NOT NULL DEFAULT '',
+    search_version  int NOT NULL DEFAULT 0,
+    version         bigint NOT NULL DEFAULT 1,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (legal_entity_id, number)
+);
+
+-- Money received, registered offline (RC01, RC02; internal/receipts): received when registered, reversed with a
+-- reason; the fund fact's ID it published and the reversal's.
+CREATE TABLE receipt (
+    id               uuid PRIMARY KEY,
+    number           text NOT NULL UNIQUE,
+    legal_entity_id  uuid NOT NULL,
+    bank_account_id  uuid NOT NULL REFERENCES bank_account (id),
+    payer_id         uuid,
+    currency         text NOT NULL,
+    amount           numeric NOT NULL CHECK (amount > 0),
+    received_on      date NOT NULL,
+    bank_reference   text NOT NULL,
+    order_id         uuid,
+    description      text,
+    state            text NOT NULL DEFAULT 'received' CHECK (state IN ('received', 'reversed')),
+    fact_id          uuid NOT NULL,
+    reversal_fact_id uuid,
+    maker_id         text NOT NULL,
+    reason           text,
+    search           text NOT NULL DEFAULT '',
+    search_version   int NOT NULL DEFAULT 0,
+    version          bigint NOT NULL DEFAULT 1,
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    updated_at       timestamptz NOT NULL DEFAULT now()
+);
+-- RC01: a bank reference once per account among the receipts not reversed
+CREATE UNIQUE INDEX receipt_bank_reference ON receipt (bank_account_id, bank_reference) WHERE state = 'received';
+CREATE INDEX receipt_listed ON receipt (legal_entity_id, created_at DESC, id);

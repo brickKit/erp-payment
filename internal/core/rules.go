@@ -33,6 +33,7 @@ var (
 		"The currency does not exist or is not active")
 	ErrPartner = errs.Define(ID, "PARTNER_NOT_USABLE", errs.FailedPrecondition, 409, errs.RetryNo,
 		"The partner does not exist or is not active")
+	ErrCode = errs.Define(ID, "CODE_TAKEN", errs.AlreadyExists, 409, errs.RetryNo, "The code is taken")
 	// RC01: a bank reference registered on the account already (receipts not reversed)
 	ErrBankReference = errs.Define(ID, "BANK_REFERENCE_TAKEN", errs.AlreadyExists, 409, errs.RetryNo,
 		"The bank reference is registered on this account already")

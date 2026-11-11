@@ -8,17 +8,20 @@
 
 | 包 | 一句话 | 依赖（本组件内） |
 | --- | --- | --- |
+| `receipts` | 收款单：登记即到账、冲正，资金事实（RC01、RC02） | `bankaccounts`、`core`、`facts`、`masterdata` |
+| `bankaccounts` | 公司银行账户，账号是受限字段 | `core`、`masterdata` |
 | `orgunits` | 部门投影（协议 02） | `core`、`masterdata` |
-| `facts` | 系统面 `FactService.Read`：按身份读回本组件的增量事实 | `core` |
-| `masterdata`（共用） | 事务外取证：主数据组件（以后还有财务的认领、销售的订单、汇率） | `core` |
+| `facts` | 两份共享契约的形状与发布（`Fund`、`Accounting`）；系统面 `FactService.Read` | `core`、`masterdata` |
+| `masterdata`（共用） | 事务外取证：主数据组件、汇率快照、销售的订单（以后还有财务的认领） | `core` |
 | `core`（共用） | 名字、资源与操作的定义、错误与校验、生命周期表、增量事实、`Base` | — |
 
 分层（每个包只引用比它低的层，没有环）：
 
 | 层 | 包 |
 | --- | --- |
-| 3 | `orgunits` |
-| 2 | `facts`、`masterdata` |
+| 4 | `receipts` |
+| 3 | `bankaccounts`、`orgunits`、`facts` |
+| 2 | `masterdata` |
 | 1 | `core` |
 
 核对：`go list -f '{{.Imports}}' ./internal/<包>`。

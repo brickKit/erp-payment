@@ -4,8 +4,10 @@ import (
 	"context"
 	"time"
 
+	bankaccounts "github.com/brickKit/erp-payment/v3/internal/bankaccounts"
 	core "github.com/brickKit/erp-payment/v3/internal/core"
 	orgunits "github.com/brickKit/erp-payment/v3/internal/orgunits"
+	receipts "github.com/brickKit/erp-payment/v3/internal/receipts"
 
 	"github.com/brickKit/be-sdk-go/v3/db"
 	"github.com/brickKit/be-sdk-go/v3/events"
@@ -38,15 +40,18 @@ func (m *Module) Routes(r *httpx.Routes) error {
 	add := func(method, path, op string, h httpx.Handler) {
 		r.Add(httpx.Route{Method: method, Path: path, Operation: op, Handle: h})
 	}
-	add("GET", "/api/payment/bank-accounts", core.OpBankAccountRead, core.Unsupported("listBankAccounts"))                           // listBankAccounts
-	add("POST", "/api/payment/bank-accounts", core.OpBankAccountWrite, core.Unsupported("createBankAccount"))                        // createBankAccount
-	add("GET", "/api/payment/bank-accounts/:id", core.OpBankAccountRead, core.Unsupported("getBankAccount"))                         // getBankAccount
-	add("PATCH", "/api/payment/bank-accounts/:id", core.OpBankAccountWrite, core.Unsupported("updateBankAccount"))                   // updateBankAccount
+	h := func(f func(*core.Base, *httpx.Context) error) httpx.Handler {
+		return func(c *httpx.Context) error { return f(m.b, c) }
+	}
+	add("GET", "/api/payment/bank-accounts", core.OpBankAccountRead, h(bankaccounts.ListBankAccounts))                               // listBankAccounts
+	add("POST", "/api/payment/bank-accounts", core.OpBankAccountWrite, h(bankaccounts.CreateBankAccount))                            // createBankAccount
+	add("GET", "/api/payment/bank-accounts/:id", core.OpBankAccountRead, h(bankaccounts.GetBankAccount))                             // getBankAccount
+	add("PATCH", "/api/payment/bank-accounts/:id", core.OpBankAccountWrite, h(bankaccounts.UpdateBankAccount))                       // updateBankAccount
 	add("GET", "/api/payment/bank-accounts/:id/reconciliation", core.OpStatementRead, core.Unsupported("getReconciliation"))         // getReconciliation
-	add("GET", "/api/payment/receipts", core.OpReceiptRead, core.Unsupported("listReceipts"))                                        // listReceipts
-	add("POST", "/api/payment/receipts", core.OpReceiptRegister, core.Unsupported("registerReceipt"))                                // registerReceipt
-	add("GET", "/api/payment/receipts/:id", core.OpReceiptRead, core.Unsupported("getReceipt"))                                      // getReceipt
-	add("POST", "/api/payment/receipts/:id/reverse", core.OpReceiptReverse, core.Unsupported("reverseReceipt"))                      // reverseReceipt
+	add("GET", "/api/payment/receipts", core.OpReceiptRead, h(receipts.ListReceipts))                                                // listReceipts
+	add("POST", "/api/payment/receipts", core.OpReceiptRegister, h(receipts.RegisterReceipt))                                        // registerReceipt
+	add("GET", "/api/payment/receipts/:id", core.OpReceiptRead, h(receipts.GetReceipt))                                              // getReceipt
+	add("POST", "/api/payment/receipts/:id/reverse", core.OpReceiptReverse, h(receipts.ReverseReceipt))                              // reverseReceipt
 	add("GET", "/api/payment/proposals", core.OpRequestRead, core.Unsupported("listProposals"))                                      // listProposals
 	add("GET", "/api/payment/requests", core.OpRequestRead, core.Unsupported("listRequests"))                                        // listRequests
 	add("POST", "/api/payment/requests", core.OpRequestEdit, core.Unsupported("createRequest"))                                      // createRequest

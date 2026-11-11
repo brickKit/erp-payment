@@ -18,13 +18,15 @@
 | 文件 | 步 | 测的流程 | 覆盖的规则 | 被测的模块 |
 | --- | --- | --- | --- | --- |
 | `unsupported_integration_test.go` | `notInThisVersion` | 骨架：还没做的路由答“能力不支持”（每做完一步就换掉它的路由，全做完时删掉这一步） | D75 | 入口 `payment/module.go` |
+| `bankaccounts_integration_test.go` | `bankAccounts` | 上海的人民币、美元、停用的账户与北京的账户；新建的拒绝（法人、币种、同法人账号重复、格式）；别的法人可以同号；Carol 的授予不列受限字段，单条与列表都只看到后四位；按版本改名、停用 | 安全 09a | `bankaccounts` |
+| `receipts_integration_test.go` | `receipts` | 登记即到账、资金事实合乎财务的共享 schema、完整状态事件；同一幂等键答同一张；登记的拒绝（流水号重复、停用或别的法人的账户、暂停的付款方、不是付款方的订单、金额为零）；订单参考随事实、付款方不明为空、美元账户带汇率快照；冲正写原因、冲正事实指向原事实、重复的忽略、冲正后流水号可再用；列表；`FactService.Read` | RC01、RC02 | `receipts`、`bankaccounts`、`facts` |
 
 共用的：
 
 | 文件 | 内容 |
 | --- | --- |
-| `endtoend_integration_test.go` | `TestPaymentEndToEnd`（各步的顺序）；`fixture`（运行中的成员、替身、世界的 ID：上海与北京两个法人、两个部门、一个客户、一个供应商、一个暂停的伙伴；Alice 与 Bob 两个用户）；`start`；辅助：`client.do`、`at`、`get`、`unit`、`publishOrgUnit`、`publishOrg`、`portFree` |
-| `standins_integration_test.go` | 替身，各按已发布的契约经 mTLS 答：`mdm/org`（法人与部门）、`mdm/partner`（伙伴与它的状态）、`mdm/currency`、`erp/finance` 的 `ClaimService`、`erp/sales` 的 `OrderService.Read`（后两个随用到它们的步骤实现） |
+| `endtoend_integration_test.go` | `TestPaymentEndToEnd`（各步的顺序）；`fixture`（运行中的成员、替身、世界的 ID：上海与北京两个法人、两个部门、一个客户、一个供应商、一个暂停的伙伴；Alice 与 Bob 两个用户，Carol 只读且不读受限字段）；`start`；辅助：`client.do`、`at`、`get`、`unit`、`publishOrgUnit`、`publishOrg`、`portFree` |
+| `standins_integration_test.go` | 替身，各按已发布的契约经 mTLS 答：`mdm/org`（法人与部门）、`mdm/partner`（伙伴与它的状态）、`mdm/currency`（含 `RateService`：USD→CNY 7.1）、`erp/sales` 的 `OrderService.Read`（测试按身份放入订单：`salesStandIn.set`）、`erp/finance` 的 `ClaimService`（随 P3c 实现） |
 
 ## 加测试
 

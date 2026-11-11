@@ -29,6 +29,7 @@ import (
 	core "github.com/brickKit/erp-payment/v3/internal/core"
 	payment "github.com/brickKit/erp-payment/v3/payment"
 
+	sdkauthz "github.com/brickKit/be-sdk-go/v3/authz"
 	"github.com/brickKit/be-sdk-go/v3/component"
 	"github.com/brickKit/be-sdk-go/v3/config"
 	"github.com/brickKit/be-sdk-go/v3/events"
@@ -69,6 +70,7 @@ type fixture struct {
 	admin *pgx.Conn
 	alice client
 	bob   client // a second user: approves and releases what Alice submits
+	carol client // reads bank accounts and receipts, the account number not (a restricted field)
 	org   *orgStandIn
 	tr    events.Transport
 	rt    *runtime.Runtime // the member's runtime
@@ -77,11 +79,15 @@ type fixture struct {
 	// erp/finance's ClaimService and erp/sales' order read
 	finance *financeStandIn
 	sales   *salesStandIn
+	// Shanghai's bank accounts: CNY, USD, an inactive one; Beijing's CNY (the bankAccounts step)
+	cny, usd, inactive, bj string
 }
 
 func TestPaymentEndToEnd(t *testing.T) {
 	fx := start(t)
 	fx.notInThisVersion()
+	fx.bankAccounts()
+	fx.receipts()
 }
 
 // start makes the world, the stand-ins and mdm/org's stream, then migrates and runs the member.
@@ -102,6 +108,7 @@ func start(t *testing.T) *fixture {
 	w := sectest.New(t)
 	w.GrantAll(sectest.Alice, core.Definitions())
 	w.GrantAll(sectest.Bob, core.Definitions())
+	w.Grant(carol, readOnly(core.Definitions(), core.OpBankAccountRead, core.OpReceiptRead)...)
 	// two legal entities, Shanghai (code SH, CNY) and Beijing (code BJ, CNY), two departments of Shanghai, a customer,
 	// a supplier and a suspended partner
 	fx := &fixture{t: t, ctx: ctx, w: w, admin: admin, le: ids.New().String(), le2: ids.New().String(), d1: ids.New().String(),
@@ -119,7 +126,10 @@ func start(t *testing.T) *fixture {
 		partnerv3.RegisterSourceServiceServer(s, p)
 		partnerv3.RegisterPartnerServiceServer(s, p)
 	})
-	serve(t, itCurrency, w, core.Currency, func(s *grpc.Server) { currencyv3.RegisterSourceServiceServer(s, currencyStandIn{}) })
+	serve(t, itCurrency, w, core.Currency, func(s *grpc.Server) {
+		currencyv3.RegisterSourceServiceServer(s, currencyStandIn{})
+		currencyv3.RegisterRateServiceServer(s, currencyStandIn{})
+	})
 	fx.finance = newFinanceStandIn()
 	serve(t, itFinance, w, core.Finance, func(s *grpc.Server) { financev3.RegisterClaimServiceServer(s, fx.finance) })
 	fx.sales = &salesStandIn{orders: map[string]map[string]any{}}
@@ -178,10 +188,44 @@ func start(t *testing.T) *fixture {
 	}, 20*time.Second, 100*time.Millisecond)
 	fx.alice = client{t, w.Bearer(sectest.Alice)}
 	fx.bob = client{t, w.Bearer(sectest.Bob)}
+	fx.carol = client{t, w.Bearer(carol)}
 	return fx
 }
 
 var orgStream = events.Stream{Name: core.OrgStream, Partitions: 4}
+
+// carol is a third principal of the test deployment.
+const carol = "0190f3a1-0000-7000-8000-0000000000c3"
+
+// readOnly grants the operations everywhere with every ordinary field: the restricted ones are not listed.
+func readOnly(defs *sdkauthz.Definitions, ops ...string) []sdkauthz.Segment {
+	var out []sdkauthz.Segment
+	for _, op := range ops {
+		for _, o := range defs.Operations {
+			if o.Key != op {
+				continue
+			}
+			for _, r := range defs.Resources {
+				if r.Type != o.ResourceType {
+					continue
+				}
+				atoms := map[string]sdkauthz.Atom{}
+				for d := range r.Dimensions {
+					atoms[d] = sdkauthz.Atom{Kind: "all"}
+				}
+				var fields []string
+				for f, fd := range r.Fields {
+					if fd.Class == sdkauthz.Ordinary {
+						fields = append(fields, f)
+					}
+				}
+				out = append(out, sdkauthz.Segment{ResourceType: r.Type, Operation: op, Atoms: atoms, ReadFields: fields,
+					Valid: sdkauthz.Window{From: "2026-01-01T00:00:00Z"}})
+			}
+		}
+	}
+	return out
+}
 
 var shanghai, _ = time.LoadLocation("Asia/Shanghai")
 

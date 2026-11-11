@@ -10,7 +10,7 @@ import (
 // replaces its routes; this step goes once every route is built).
 func (fx *fixture) notInThisVersion() {
 	for _, r := range []struct{ method, path string }{
-		{"GET", "/api/payment/bank-accounts?legal_entity_id=" + fx.le},
+		{"GET", "/api/payment/requests?legal_entity_id=" + fx.le},
 		{"POST", "/api/payment/statement-lines"},
 	} {
 		code, out := fx.alice.do(r.method, r.path, map[string]any{})

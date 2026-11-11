@@ -8,10 +8,13 @@ import (
 
 	"github.com/brickKit/be-sdk-go/v3/calls"
 	"github.com/brickKit/be-sdk-go/v3/errs"
+	salesv3 "github.com/brickKit/erp-sales/contract/v3/gen/go/be/erp/sales/v3"
 	currencyv3 "github.com/brickKit/mdm-currency/contract/v3/gen/go/be/mdm/currency/v3"
 	orgv3 "github.com/brickKit/mdm-org/contract/v3/gen/go/be/mdm/org/v3"
 	partnerv3 "github.com/brickKit/mdm-partner/contract/v3/gen/go/be/mdm/partner/v3"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Every call here runs outside a transaction (protocol P4.20): evidence first, then the transaction. Unreachable is
@@ -149,4 +152,59 @@ func CurrencyScale(m *core.Base, ctx context.Context, code string) (int32, error
 func Deployed(m *core.Base, id string) bool {
 	_, ok := m.RT.GRPC(id)
 	return ok
+}
+
+// Rate is a rate snapshot as a fact carries it (the shared contracts' exchange_rate).
+type Rate struct {
+	Rate string `json:"rate"`
+	Date string `json:"date"`
+	Type string `json:"type"`
+}
+
+// RateOf is the spot rate from a currency to the legal entity's base currency on the business date (mdm/currency's
+// RateService); nil when they are the same currency. No rate answers CURRENCY_NOT_USABLE.
+func RateOf(m *core.Base, ctx context.Context, from, to, date string) (*Rate, error) {
+	if from == to {
+		return nil, nil
+	}
+	c, err := Conn(m, core.Currency)
+	if err != nil {
+		return nil, err
+	}
+	res, err := currencyv3.NewRateServiceClient(c).EffectiveRate(ctx, &currencyv3.EffectiveRateRequest{RateType: "spot",
+		Date: date, FromCurrency: from, ToCurrency: to}, calls.Idempotent())
+	if status.Code(err) == codes.NotFound {
+		return nil, core.ErrCurrency.New("no spot rate " + from + "/" + to + " on " + date)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &Rate{Rate: res.GetRate(), Date: res.GetRateDate(), Type: res.GetRateType()}, nil
+}
+
+// Order is what a receipt checks of an erp/sales order (RC01).
+type Order struct {
+	ID            string `json:"id"`
+	LegalEntityID string `json:"legal_entity_id"`
+	CustomerID    string `json:"customer_id"`
+}
+
+// OrderOf reads an order from erp/sales' OrderService; not known, or erp/sales not deployed, answers ORDER_NOT_USABLE.
+func OrderOf(m *core.Base, ctx context.Context, id string) (Order, error) {
+	if !Deployed(m, core.Sales) {
+		return Order{}, core.ErrOrder.New("erp/sales is not in the assembly: a receipt takes no order reference")
+	}
+	c, err := Conn(m, core.Sales)
+	if err != nil {
+		return Order{}, err
+	}
+	res, err := salesv3.NewOrderServiceClient(c).Read(ctx, &salesv3.ReadRequest{Ids: []string{id}}, calls.Idempotent())
+	if err != nil {
+		return Order{}, err
+	}
+	if len(res.GetResults()) != 1 || res.GetResults()[0].GetState() != salesv3.ReadState_READ_STATE_EXISTS {
+		return Order{}, core.ErrOrder.New("no sales order " + id)
+	}
+	var o Order
+	return o, json.Unmarshal(res.GetResults()[0].GetData(), &o)
 }

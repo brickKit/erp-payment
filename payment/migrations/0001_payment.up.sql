@@ -111,3 +111,31 @@ CREATE TABLE payment_request_line (
     paid             numeric NOT NULL DEFAULT 0,
     UNIQUE (request_id, position)
 );
+
+-- A transfer between the company's accounts, a bank charge or interest (BE01-BE04; internal/entries): approved, it
+-- posts its accounting fact; a transfer goes out (in_transit) and arrives later (posted).
+CREATE TABLE bank_entry (
+    id                 uuid PRIMARY KEY,
+    number             text NOT NULL UNIQUE,
+    legal_entity_id    uuid NOT NULL,
+    kind               text NOT NULL CHECK (kind IN ('transfer', 'charge', 'interest')),
+    bank_account_id    uuid NOT NULL REFERENCES bank_account (id),
+    to_bank_account_id uuid REFERENCES bank_account (id),
+    currency           text NOT NULL,
+    amount             numeric NOT NULL CHECK (amount > 0),
+    entry_date         date NOT NULL,
+    arrived_on         date,
+    description        text NOT NULL,
+    state              text NOT NULL DEFAULT 'draft'
+        CHECK (state IN ('draft', 'submitted', 'in_transit', 'posted', 'cancelled')),
+    maker_id           text NOT NULL,
+    approver_id        text,
+    statement_line_id  uuid,
+    out_fact_id        uuid,
+    in_fact_id         uuid,
+    reason             text,
+    version            bigint NOT NULL DEFAULT 1,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX bank_entry_listed ON bank_entry (legal_entity_id, created_at DESC, id);

@@ -20,7 +20,7 @@
 
 ## 依赖与被依赖
 
-- 依赖：`internal/bankaccounts`、`internal/core`、`internal/facts`、`internal/orgunits`、`internal/receipts`、`internal/requests`（随实现增加）。
+- 依赖：`internal/bankaccounts`、`internal/core`、`internal/entries`、`internal/facts`、`internal/orgunits`、`internal/receipts`、`internal/requests`（随实现增加）。
 - 被依赖：`main.go`、外壳、`itest/`。
 - 模块不能反过来引用这里（会成环）：模块需要的名字放 `internal/core`。
 

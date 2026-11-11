@@ -9,6 +9,7 @@
 | 包 | 一句话 | 依赖（本组件内） |
 | --- | --- | --- |
 | `requests` | 付款建议与付款申请：认领、审批、放行确认、执行、退回、取消、续期与失效（PR01–PR08） | `bankaccounts`、`core`、`facts`、`masterdata`、`orgunits` |
+| `entries` | 资金调拨（转出、到账）与银行手续费、利息：审批后发布会计事实（BE01–BE04） | `bankaccounts`、`core`、`facts`、`masterdata` |
 | `receipts` | 收款单：登记即到账、冲正，资金事实（RC01、RC02） | `bankaccounts`、`core`、`facts`、`masterdata` |
 | `bankaccounts` | 公司银行账户，账号是受限字段 | `core`、`masterdata` |
 | `orgunits` | 部门投影（协议 02） | `core`、`masterdata` |
@@ -20,7 +21,7 @@
 
 | 层 | 包 |
 | --- | --- |
-| 4 | `receipts`、`requests` |
+| 4 | `entries`、`receipts`、`requests` |
 | 3 | `bankaccounts`、`orgunits`、`facts` |
 | 2 | `masterdata` |
 | 1 | `core` |

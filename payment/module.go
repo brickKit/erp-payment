@@ -6,6 +6,7 @@ import (
 
 	bankaccounts "github.com/brickKit/erp-payment/v3/internal/bankaccounts"
 	core "github.com/brickKit/erp-payment/v3/internal/core"
+	entries "github.com/brickKit/erp-payment/v3/internal/entries"
 	orgunits "github.com/brickKit/erp-payment/v3/internal/orgunits"
 	receipts "github.com/brickKit/erp-payment/v3/internal/receipts"
 	requests "github.com/brickKit/erp-payment/v3/internal/requests"
@@ -65,15 +66,15 @@ func (m *Module) Routes(r *httpx.Routes) error {
 	add("POST", "/api/payment/requests/:id/execute", core.OpRequestExecute, requests.Action(m.b, requests.Execute))                  // executeRequest
 	add("POST", "/api/payment/requests/:id/return", core.OpRequestExecute, requests.Action(m.b, requests.Return))                    // returnRequest
 	add("POST", "/api/payment/requests/:id/cancel", core.OpRequestEdit, requests.Action(m.b, requests.Cancel))                       // cancelRequest
-	add("GET", "/api/payment/entries", core.OpEntryRead, core.Unsupported("listEntries"))                                            // listEntries
-	add("POST", "/api/payment/entries", core.OpEntryEdit, core.Unsupported("createEntry"))                                           // createEntry
-	add("GET", "/api/payment/entries/:id", core.OpEntryRead, core.Unsupported("getEntry"))                                           // getEntry
-	add("PATCH", "/api/payment/entries/:id", core.OpEntryEdit, core.Unsupported("updateEntry"))                                      // updateEntry
-	add("POST", "/api/payment/entries/:id/submit", core.OpEntryEdit, core.Unsupported("submitEntry"))                                // submitEntry
-	add("POST", "/api/payment/entries/:id/approve", core.OpEntryApprove, core.Unsupported("approveEntry"))                           // approveEntry
-	add("POST", "/api/payment/entries/:id/reject", core.OpEntryApprove, core.Unsupported("rejectEntry"))                             // rejectEntry
-	add("POST", "/api/payment/entries/:id/arrive", core.OpEntryEdit, core.Unsupported("arriveEntry"))                                // arriveEntry
-	add("POST", "/api/payment/entries/:id/cancel", core.OpEntryEdit, core.Unsupported("cancelEntry"))                                // cancelEntry
+	add("GET", "/api/payment/entries", core.OpEntryRead, h(entries.ListEntries))                                                     // listEntries
+	add("POST", "/api/payment/entries", core.OpEntryEdit, h(entries.CreateEntry))                                                    // createEntry
+	add("GET", "/api/payment/entries/:id", core.OpEntryRead, h(entries.GetEntry))                                                    // getEntry
+	add("PATCH", "/api/payment/entries/:id", core.OpEntryEdit, h(entries.UpdateEntry))                                               // updateEntry
+	add("POST", "/api/payment/entries/:id/submit", core.OpEntryEdit, entries.Action(m.b, entries.Submit))                            // submitEntry
+	add("POST", "/api/payment/entries/:id/approve", core.OpEntryApprove, entries.Action(m.b, entries.Approve))                       // approveEntry
+	add("POST", "/api/payment/entries/:id/reject", core.OpEntryApprove, entries.Action(m.b, entries.Reject))                         // rejectEntry
+	add("POST", "/api/payment/entries/:id/arrive", core.OpEntryEdit, entries.Action(m.b, entries.Arrive))                            // arriveEntry
+	add("POST", "/api/payment/entries/:id/cancel", core.OpEntryEdit, entries.Action(m.b, entries.Cancel))                            // cancelEntry
 	add("GET", "/api/payment/statement-lines", core.OpStatementRead, core.Unsupported("listStatementLines"))                         // listStatementLines
 	add("POST", "/api/payment/statement-lines", core.OpReconcile, core.Unsupported("registerStatementLines"))                        // registerStatementLines
 	add("POST", "/api/payment/statement-lines/:id/match", core.OpReconcile, core.Unsupported("matchStatementLine"))                  // matchStatementLine

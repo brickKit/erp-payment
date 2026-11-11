@@ -81,6 +81,8 @@ type fixture struct {
 	sales   *salesStandIn
 	// Shanghai's bank accounts: CNY, USD, an inactive one; Beijing's CNY (the bankAccounts step)
 	cny, usd, inactive, bj string
+	// Shanghai's second CNY account, a transfer's to-account (the entries step)
+	icbc string
 }
 
 func TestPaymentEndToEnd(t *testing.T) {
@@ -89,6 +91,7 @@ func TestPaymentEndToEnd(t *testing.T) {
 	fx.bankAccounts()
 	fx.receipts()
 	fx.requests()
+	fx.entries()
 }
 
 // start makes the world, the stand-ins and mdm/org's stream, then migrates and runs the member.

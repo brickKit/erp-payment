@@ -294,3 +294,19 @@ func Release(m *core.Base, ctx context.Context, claimID string) error {
 	}
 	return err
 }
+
+// ClaimState is a claim's state at erp/finance (Get); "" when finance does not know it.
+func ClaimState(m *core.Base, ctx context.Context, claimID string) (string, error) {
+	f, err := finance(m)
+	if err != nil {
+		return "", err
+	}
+	r, err := f.Get(ctx, &financev3.GetRequest{ClaimId: claimID}, calls.Idempotent())
+	if status.Code(err) == codes.NotFound {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return r.GetClaim().GetState(), nil
+}

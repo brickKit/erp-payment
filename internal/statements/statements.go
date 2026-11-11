@@ -181,10 +181,14 @@ func RegisterLines(m *core.Base, c *httpx.Context) error {
 			if _, err := matching.ByReference(ctx, tx, id); err != nil {
 				return idem.Outcome{}, err
 			}
+			line, err := get(ctx, tx, id, false)
+			if err != nil {
+				return idem.Outcome{}, err
+			}
+			if err := core.Change(m, ctx, tx, actor, core.OpReconcile, core.Statements, id, line); err != nil {
+				return idem.Outcome{}, err
+			}
 			r.IDs = append(r.IDs, id)
-		}
-		if err := core.Change(m, ctx, tx, actor, core.OpReconcile, core.Statements, a.ID, r); err != nil {
-			return idem.Outcome{}, err
 		}
 		b, err := json.Marshal(r)
 		return idem.Outcome{Status: 200, Result: b}, err

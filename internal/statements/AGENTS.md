@@ -19,7 +19,7 @@
 | --- | --- |
 | `lifecycle.go` | 状态、命令、附加条件；表 `Lifecycle` |
 | `lifecycle_test.go` | 单元测试：每一格都定了；设计文档的表与代码逐格相同；每条规则都有集成测试写明 |
-| `statements.go` | `Line`、`Document`；`account`（按账户的法人授权）、`signed`；`RegisterLines`（幂等；带流水号的按“账户 + 流水号”去重，跳过的列在答复里；每行登记后按流水号匹配一次）、`ListLines`（按日期）、`Action`、`CreateEntryFromLine`（付的行生成手续费、收的行生成利息的草稿，一行只生成一张）、`Reconciliation`（行的合计、已匹配与未匹配的合计、这边没被匹配的单据）、`reduce` |
+| `statements.go` | `Line`、`Document`；`account`（按账户的法人授权）、`signed`；`RegisterLines`（幂等；带流水号的按“账户 + 流水号”去重，跳过的列在答复里；每行登记后按流水号匹配一次，每行一条审计，整套恢复按行核对）、`ListLines`（按日期）、`Action`、`CreateEntryFromLine`（付的行生成手续费、收的行生成利息的草稿，一行只生成一张）、`Reconciliation`（行的合计、已匹配与未匹配的合计、这边没被匹配的单据）、`reduce` |
 
 ## 依赖与被依赖
 

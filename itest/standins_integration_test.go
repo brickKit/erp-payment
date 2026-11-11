@@ -285,6 +285,13 @@ func (f *financeStandIn) lose(claim string) {
 	f.lost[claim] = true
 }
 
+// drop releases a claim at finance behind its user's back (a full recovery lost its confirmation).
+func (f *financeStandIn) drop(claim string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.claims[claim].state = "released"
+}
+
 func (f *financeStandIn) renewCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()

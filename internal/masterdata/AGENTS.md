@@ -11,7 +11,7 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `upstream.go` | `Conn`、`LegalEntityOf`、`OrgUnitRead`（部门投影用）、`PartnerOf`、`CurrencyScale`、`Deployed`、`Rate` 与 `RateOf`（`mdm/currency` 的 `RateService`，按业务日期的即期汇率；同一币种时为空）、`Order` 与 `OrderOf`（`erp/sales` 的 `OrderService.Read`）；财务的 `ClaimService`：`DueItems`、`Claim`、`Renew`、`Confirm`、`Release`（财务拒绝时转成本组件同名的原因 `CLAIM_EXCEEDS_AVAILABLE`、`CLAIM_CONFLICT`、`CLAIM_STATE`，`core.ClaimRefused` 判断；释放一个财务不认识的认领算已释放） |
+| `upstream.go` | `Conn`、`LegalEntityOf`、`OrgUnitRead`（部门投影用）、`PartnerOf`、`CurrencyScale`、`Deployed`、`Rate` 与 `RateOf`（`mdm/currency` 的 `RateService`，按业务日期的即期汇率；同一币种时为空）、`Order` 与 `OrderOf`（`erp/sales` 的 `OrderService.Read`）；财务的 `ClaimService`：`DueItems`、`Claim`、`Renew`、`Confirm`、`Release`、`ClaimState`（`Get`，财务不认识的答空）（财务拒绝时转成本组件同名的原因 `CLAIM_EXCEEDS_AVAILABLE`、`CLAIM_CONFLICT`、`CLAIM_STATE`，`core.ClaimRefused` 判断；释放一个财务不认识的认领算已释放） |
 
 ## 依赖与被依赖
 

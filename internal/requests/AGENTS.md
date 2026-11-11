@@ -24,12 +24,13 @@
 | `records.go` | `Request`、`Line`；读取的 SQL（`cols`、`scan`、`lines`、`Get`、`Read`）；`facts`（两个维度）、`claims`、`changed`（完整状态事件与审计；后台的失效不审计） |
 | `requests.go` | `prepare`（事务外取证：法人、账户与币种、收款方、部门、行金额；装了财务时每行必须有未清项，没装时不能有）、`writeLines`；`CreateRequest`（内部号 `PR` 在事务之前取）、`UpdateRequest`（草稿，按版本）、`GetRequest`、`ListRequests`、`ListProposals`（转财务的 `DueItems`） |
 | `actions.go` | `Action`、`moved`；`payable`（PR02：按收款方、种类、币种在财务的到期未清项里核对）、`releaseAll`；`submit`、`approve`、`giveBack`（驳回与取消）、`release`、`split`（逐行或按顺序分实付）、`execute`、`returned` |
+| `checks.go` | `CheckHeldClaims`、`HeldClaims`（整套恢复的检查：已放行的申请在财务那边的认领不是已确认的报出来，事务之后才问财务；不改状态） |
 | `renewal.go` | `JobRenewClaim`、`RenewClaim`（PR08：续期并排下一次；被拒则 `lapse` 回草稿、释放其余认领）、`renewAt`（期限前一小时，期限更短时在中点）、`scheduleRenewal`、`holds` |
 
 ## 依赖与被依赖
 
-- 依赖：`bankaccounts`、`core`、`facts`、`masterdata`、`orgunits`。
-- 被依赖：入口登记路由与工作（以后：对账匹配）。
+- 依赖：`bankaccounts`、`core`、`facts`、`masterdata`、`matching`、`orgunits`。
+- 被依赖：入口登记路由、工作与恢复检查。
 
 ## 规则在哪
 
@@ -38,4 +39,4 @@
 ## 测试
 
 - 单元：`lifecycle_test.go`。
-- 集成：`itest/requests_integration_test.go`（`requests`：PR01–PR08，财务的认领服务用替身）。没装财务的路径（行不带未清项、不认领）首批没有集成测试：测试部署总装着财务的替身。
+- 集成：`itest/requests_integration_test.go`（`requests`：PR01–PR08，财务的认领服务用替身）；`itest/recovery_integration_test.go`（检查 `erp.payment.held_claims`）。没装财务的路径（行不带未清项、不认领）首批没有集成测试：测试部署总装着财务的替身。

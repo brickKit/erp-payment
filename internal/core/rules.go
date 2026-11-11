@@ -54,6 +54,9 @@ var (
 	// PR04: a claim lapsed or was released before the request was released for payment
 	ErrClaimLost = errs.Define(ID, "CLAIM_LOST", errs.FailedPrecondition, 409, errs.RetryNo,
 		"A payment claim of the request is no longer held: submit the request again")
+	// BR02: a statement line and a document that do not match (account, amount and direction, state, matched already)
+	ErrNotMatchable = errs.Define(ID, "NOT_MATCHABLE", errs.FailedPrecondition, 409, errs.RetryNo,
+		"The document does not match the statement line")
 	// PR03, PR04, BE02: an approver or releaser is not the one who submitted or made it (by account)
 	ErrApprover = errs.Define(ID, "APPROVER_IS_SUBMITTER", errs.FailedPrecondition, 409, errs.RetryNo,
 		"The one who submitted or made it does not approve or release it")

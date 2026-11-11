@@ -139,3 +139,28 @@ CREATE TABLE bank_entry (
     updated_at         timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX bank_entry_listed ON bank_entry (legal_entity_id, created_at DESC, id);
+
+-- A bank statement's line (BR01-BR04; internal/statements, internal/matching): money in positive, out negative; the
+-- document it matched (a transfer by its leg: out on the from-account, in on the to-account).
+CREATE TABLE statement_line (
+    id              uuid PRIMARY KEY,
+    legal_entity_id uuid NOT NULL,
+    bank_account_id uuid NOT NULL REFERENCES bank_account (id),
+    booked_on       date NOT NULL,
+    amount          numeric NOT NULL CHECK (amount <> 0),
+    bank_reference  text,
+    text            text,
+    state           text NOT NULL DEFAULT 'unmatched' CHECK (state IN ('unmatched', 'matched', 'resolved')),
+    matched_type    text CHECK (matched_type IN ('receipt', 'payment_request', 'bank_entry')),
+    matched_id      uuid,
+    matched_number  text,
+    matched_leg     text NOT NULL DEFAULT '',
+    note            text,
+    version         bigint NOT NULL DEFAULT 1,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now()
+);
+-- BR01: a bank reference once per account; BR02: a document (a transfer's leg) matched by one line
+CREATE UNIQUE INDEX statement_line_reference ON statement_line (bank_account_id, bank_reference) WHERE bank_reference IS NOT NULL;
+CREATE UNIQUE INDEX statement_line_document ON statement_line (matched_type, matched_id, matched_leg) WHERE state = 'matched';
+CREATE INDEX statement_line_listed ON statement_line (bank_account_id, booked_on, id);

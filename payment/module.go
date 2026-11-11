@@ -10,6 +10,7 @@ import (
 	orgunits "github.com/brickKit/erp-payment/v3/internal/orgunits"
 	receipts "github.com/brickKit/erp-payment/v3/internal/receipts"
 	requests "github.com/brickKit/erp-payment/v3/internal/requests"
+	statements "github.com/brickKit/erp-payment/v3/internal/statements"
 
 	"github.com/brickKit/be-sdk-go/v3/db"
 	"github.com/brickKit/be-sdk-go/v3/events"
@@ -45,43 +46,43 @@ func (m *Module) Routes(r *httpx.Routes) error {
 	h := func(f func(*core.Base, *httpx.Context) error) httpx.Handler {
 		return func(c *httpx.Context) error { return f(m.b, c) }
 	}
-	add("GET", "/api/payment/bank-accounts", core.OpBankAccountRead, h(bankaccounts.ListBankAccounts))                               // listBankAccounts
-	add("POST", "/api/payment/bank-accounts", core.OpBankAccountWrite, h(bankaccounts.CreateBankAccount))                            // createBankAccount
-	add("GET", "/api/payment/bank-accounts/:id", core.OpBankAccountRead, h(bankaccounts.GetBankAccount))                             // getBankAccount
-	add("PATCH", "/api/payment/bank-accounts/:id", core.OpBankAccountWrite, h(bankaccounts.UpdateBankAccount))                       // updateBankAccount
-	add("GET", "/api/payment/bank-accounts/:id/reconciliation", core.OpStatementRead, core.Unsupported("getReconciliation"))         // getReconciliation
-	add("GET", "/api/payment/receipts", core.OpReceiptRead, h(receipts.ListReceipts))                                                // listReceipts
-	add("POST", "/api/payment/receipts", core.OpReceiptRegister, h(receipts.RegisterReceipt))                                        // registerReceipt
-	add("GET", "/api/payment/receipts/:id", core.OpReceiptRead, h(receipts.GetReceipt))                                              // getReceipt
-	add("POST", "/api/payment/receipts/:id/reverse", core.OpReceiptReverse, h(receipts.ReverseReceipt))                              // reverseReceipt
-	add("GET", "/api/payment/proposals", core.OpRequestRead, h(requests.ListProposals))                                              // listProposals
-	add("GET", "/api/payment/requests", core.OpRequestRead, h(requests.ListRequests))                                                // listRequests
-	add("POST", "/api/payment/requests", core.OpRequestEdit, h(requests.CreateRequest))                                              // createRequest
-	add("GET", "/api/payment/requests/:id", core.OpRequestRead, h(requests.GetRequest))                                              // getRequest
-	add("PATCH", "/api/payment/requests/:id", core.OpRequestEdit, h(requests.UpdateRequest))                                         // updateRequest
-	add("POST", "/api/payment/requests/:id/submit", core.OpRequestEdit, requests.Action(m.b, requests.Submit))                       // submitRequest
-	add("POST", "/api/payment/requests/:id/approve", core.OpRequestApprove, requests.Action(m.b, requests.Approve))                  // approveRequest
-	add("POST", "/api/payment/requests/:id/reject", core.OpRequestApprove, requests.Action(m.b, requests.Reject))                    // rejectRequest
-	add("POST", "/api/payment/requests/:id/release", core.OpRequestExecute, requests.Action(m.b, requests.Release))                  // releaseRequest
-	add("POST", "/api/payment/requests/:id/execute", core.OpRequestExecute, requests.Action(m.b, requests.Execute))                  // executeRequest
-	add("POST", "/api/payment/requests/:id/return", core.OpRequestExecute, requests.Action(m.b, requests.Return))                    // returnRequest
-	add("POST", "/api/payment/requests/:id/cancel", core.OpRequestEdit, requests.Action(m.b, requests.Cancel))                       // cancelRequest
-	add("GET", "/api/payment/entries", core.OpEntryRead, h(entries.ListEntries))                                                     // listEntries
-	add("POST", "/api/payment/entries", core.OpEntryEdit, h(entries.CreateEntry))                                                    // createEntry
-	add("GET", "/api/payment/entries/:id", core.OpEntryRead, h(entries.GetEntry))                                                    // getEntry
-	add("PATCH", "/api/payment/entries/:id", core.OpEntryEdit, h(entries.UpdateEntry))                                               // updateEntry
-	add("POST", "/api/payment/entries/:id/submit", core.OpEntryEdit, entries.Action(m.b, entries.Submit))                            // submitEntry
-	add("POST", "/api/payment/entries/:id/approve", core.OpEntryApprove, entries.Action(m.b, entries.Approve))                       // approveEntry
-	add("POST", "/api/payment/entries/:id/reject", core.OpEntryApprove, entries.Action(m.b, entries.Reject))                         // rejectEntry
-	add("POST", "/api/payment/entries/:id/arrive", core.OpEntryEdit, entries.Action(m.b, entries.Arrive))                            // arriveEntry
-	add("POST", "/api/payment/entries/:id/cancel", core.OpEntryEdit, entries.Action(m.b, entries.Cancel))                            // cancelEntry
-	add("GET", "/api/payment/statement-lines", core.OpStatementRead, core.Unsupported("listStatementLines"))                         // listStatementLines
-	add("POST", "/api/payment/statement-lines", core.OpReconcile, core.Unsupported("registerStatementLines"))                        // registerStatementLines
-	add("POST", "/api/payment/statement-lines/:id/match", core.OpReconcile, core.Unsupported("matchStatementLine"))                  // matchStatementLine
-	add("POST", "/api/payment/statement-lines/:id/unmatch", core.OpReconcile, core.Unsupported("unmatchStatementLine"))              // unmatchStatementLine
-	add("POST", "/api/payment/statement-lines/:id/resolve", core.OpReconcile, core.Unsupported("resolveStatementLine"))              // resolveStatementLine
-	add("POST", "/api/payment/statement-lines/:id/reopen", core.OpReconcile, core.Unsupported("reopenStatementLine"))                // reopenStatementLine
-	add("POST", "/api/payment/statement-lines/:id/create-entry", core.OpReconcile, core.Unsupported("createEntryFromStatementLine")) // createEntryFromStatementLine
+	add("GET", "/api/payment/bank-accounts", core.OpBankAccountRead, h(bankaccounts.ListBankAccounts))                    // listBankAccounts
+	add("POST", "/api/payment/bank-accounts", core.OpBankAccountWrite, h(bankaccounts.CreateBankAccount))                 // createBankAccount
+	add("GET", "/api/payment/bank-accounts/:id", core.OpBankAccountRead, h(bankaccounts.GetBankAccount))                  // getBankAccount
+	add("PATCH", "/api/payment/bank-accounts/:id", core.OpBankAccountWrite, h(bankaccounts.UpdateBankAccount))            // updateBankAccount
+	add("GET", "/api/payment/bank-accounts/:id/reconciliation", core.OpStatementRead, h(statements.Reconciliation))       // getReconciliation
+	add("GET", "/api/payment/receipts", core.OpReceiptRead, h(receipts.ListReceipts))                                     // listReceipts
+	add("POST", "/api/payment/receipts", core.OpReceiptRegister, h(receipts.RegisterReceipt))                             // registerReceipt
+	add("GET", "/api/payment/receipts/:id", core.OpReceiptRead, h(receipts.GetReceipt))                                   // getReceipt
+	add("POST", "/api/payment/receipts/:id/reverse", core.OpReceiptReverse, h(receipts.ReverseReceipt))                   // reverseReceipt
+	add("GET", "/api/payment/proposals", core.OpRequestRead, h(requests.ListProposals))                                   // listProposals
+	add("GET", "/api/payment/requests", core.OpRequestRead, h(requests.ListRequests))                                     // listRequests
+	add("POST", "/api/payment/requests", core.OpRequestEdit, h(requests.CreateRequest))                                   // createRequest
+	add("GET", "/api/payment/requests/:id", core.OpRequestRead, h(requests.GetRequest))                                   // getRequest
+	add("PATCH", "/api/payment/requests/:id", core.OpRequestEdit, h(requests.UpdateRequest))                              // updateRequest
+	add("POST", "/api/payment/requests/:id/submit", core.OpRequestEdit, requests.Action(m.b, requests.Submit))            // submitRequest
+	add("POST", "/api/payment/requests/:id/approve", core.OpRequestApprove, requests.Action(m.b, requests.Approve))       // approveRequest
+	add("POST", "/api/payment/requests/:id/reject", core.OpRequestApprove, requests.Action(m.b, requests.Reject))         // rejectRequest
+	add("POST", "/api/payment/requests/:id/release", core.OpRequestExecute, requests.Action(m.b, requests.Release))       // releaseRequest
+	add("POST", "/api/payment/requests/:id/execute", core.OpRequestExecute, requests.Action(m.b, requests.Execute))       // executeRequest
+	add("POST", "/api/payment/requests/:id/return", core.OpRequestExecute, requests.Action(m.b, requests.Return))         // returnRequest
+	add("POST", "/api/payment/requests/:id/cancel", core.OpRequestEdit, requests.Action(m.b, requests.Cancel))            // cancelRequest
+	add("GET", "/api/payment/entries", core.OpEntryRead, h(entries.ListEntries))                                          // listEntries
+	add("POST", "/api/payment/entries", core.OpEntryEdit, h(entries.CreateEntry))                                         // createEntry
+	add("GET", "/api/payment/entries/:id", core.OpEntryRead, h(entries.GetEntry))                                         // getEntry
+	add("PATCH", "/api/payment/entries/:id", core.OpEntryEdit, h(entries.UpdateEntry))                                    // updateEntry
+	add("POST", "/api/payment/entries/:id/submit", core.OpEntryEdit, entries.Action(m.b, entries.Submit))                 // submitEntry
+	add("POST", "/api/payment/entries/:id/approve", core.OpEntryApprove, entries.Action(m.b, entries.Approve))            // approveEntry
+	add("POST", "/api/payment/entries/:id/reject", core.OpEntryApprove, entries.Action(m.b, entries.Reject))              // rejectEntry
+	add("POST", "/api/payment/entries/:id/arrive", core.OpEntryEdit, entries.Action(m.b, entries.Arrive))                 // arriveEntry
+	add("POST", "/api/payment/entries/:id/cancel", core.OpEntryEdit, entries.Action(m.b, entries.Cancel))                 // cancelEntry
+	add("GET", "/api/payment/statement-lines", core.OpStatementRead, h(statements.ListLines))                             // listStatementLines
+	add("POST", "/api/payment/statement-lines", core.OpReconcile, h(statements.RegisterLines))                            // registerStatementLines
+	add("POST", "/api/payment/statement-lines/:id/match", core.OpReconcile, statements.Action(m.b, statements.Match))     // matchStatementLine
+	add("POST", "/api/payment/statement-lines/:id/unmatch", core.OpReconcile, statements.Action(m.b, statements.Unmatch)) // unmatchStatementLine
+	add("POST", "/api/payment/statement-lines/:id/resolve", core.OpReconcile, statements.Action(m.b, statements.Resolve)) // resolveStatementLine
+	add("POST", "/api/payment/statement-lines/:id/reopen", core.OpReconcile, statements.Action(m.b, statements.Reopen))   // reopenStatementLine
+	add("POST", "/api/payment/statement-lines/:id/create-entry", core.OpReconcile, h(statements.CreateEntryFromLine))     // createEntryFromStatementLine
 	return nil
 }
 

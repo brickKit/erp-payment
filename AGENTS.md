@@ -22,13 +22,14 @@
 | [`bankaccounts`](internal/bankaccounts/AGENTS.md) | 公司银行账户（账号是受限字段） | `bank_account` |
 | [`receipts`](internal/receipts/AGENTS.md) | 收款单：登记即到账、冲正，资金事实 | `receipt` |
 | [`entries`](internal/entries/AGENTS.md) | 资金调拨（转出、到账）与银行手续费、利息，审批后发布会计事实 | `bank_entry` |
+| [`statements`](internal/statements/AGENTS.md) | 对账单行：登记、自动与手工匹配、差错、生成科目收付、对账情况 | `statement_line` |
 | [`requests`](internal/requests/AGENTS.md) | 付款建议与付款申请：认领、审批、放行确认、执行、退回 | `payment_request`、`payment_request_line` |
 | [`facts`](internal/facts/AGENTS.md) | 两份共享契约（资金事实、会计事实）的形状与发布；系统面 `FactService.Read` | `payment_fact`（写入在 `core.Fact`） |
 | [`orgunits`](internal/orgunits/AGENTS.md) | 部门投影（协议 02）：部门路径复制到付款申请上 | `org_realign`（投影本身在 SDK 的表里） |
 
-模块共用的（不属于某一个业务）：[`masterdata`](internal/masterdata/AGENTS.md)（事务外取证：主数据、汇率快照、销售的订单、财务的认领服务）、[`core`](internal/core/AGENTS.md)（名字、资源与操作的定义、错误与校验、生命周期表的通用写法、增量事实 `Fact`）。
+模块共用的（不属于某一个业务）：[`masterdata`](internal/masterdata/AGENTS.md)（事务外取证：主数据、汇率快照、销售的订单、财务的认领服务）、[`matching`](internal/matching/AGENTS.md)（对账单行与单据的匹配：单据模块在自己的事务里调它）、[`core`](internal/core/AGENTS.md)（名字、资源与操作的定义、错误与校验、生命周期表的通用写法、增量事实 `Fact`）。
 
-**实现进度**（3.0.0 开发中，装配项目阶段计划 C3 的 P3）：公司银行账户、收款单与资金事实、`FactService.Read` 已实现（P3b）；付款建议与付款申请已实现（P3c）；资金调拨与科目收付已实现（P3d）；对账单行的路由先答“能力不支持”，P3e 做。加一个模块就在上面两张表里加一行。
+**实现进度**（3.0.0 开发中，装配项目阶段计划 C3 的 P3）：公司银行账户、收款单与资金事实、`FactService.Read` 已实现（P3b）；付款建议与付款申请已实现（P3c）；资金调拨与科目收付已实现（P3d）；对账单行与对账已实现（P3e）。加一个模块就在上面两张表里加一行。
 
 | 想改 | 从这里开始 | 然后 |
 | --- | --- | --- |

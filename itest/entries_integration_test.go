@@ -99,7 +99,7 @@ func (fx *fixture) entries() {
 	assert.Equal(t, "cancelled", fx.entryAction(fx.alice, gone["id"].(string), "cancel", nil)["state"])
 	page := fx.get("/api/payment/entries?legal_entity_id=" + fx.le + "&kind=charge")
 	assert.Len(t, page["entries"], 2, page)
-	fx.icbc = icbc
+	fx.icbc, fx.charge, fx.transfer = icbc, cid, tid
 }
 
 func (fx *fixture) entryBody(kind, account, to, amount string) map[string]any {

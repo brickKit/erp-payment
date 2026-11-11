@@ -7,8 +7,10 @@ import (
 
 	core "github.com/brickKit/erp-payment/v3/internal/core"
 	masterdata "github.com/brickKit/erp-payment/v3/internal/masterdata"
+	matching "github.com/brickKit/erp-payment/v3/internal/matching"
 
 	"github.com/brickKit/be-sdk-go/v3/db"
+	"github.com/brickKit/be-sdk-go/v3/errs"
 	"github.com/brickKit/be-sdk-go/v3/httpx"
 )
 
@@ -116,7 +118,17 @@ func apply(m *core.Base, ctx context.Context, tx db.Tx, e Entry, command, actor 
 		if err := f.Publish(m, ctx, tx); err != nil {
 			return err
 		}
-		return set(`state = $2, approver_id = $3, out_fact_id = $4`, to, actor, f.FactID)
+		if err := set(`state = $2, approver_id = $3, out_fact_id = $4`, to, actor, f.FactID); err != nil {
+			return err
+		}
+		if e.StatementLineID == nil {
+			return nil
+		}
+		// BR04: made from a statement line, it matches its line (unless the line was matched by hand meanwhile)
+		if err := matching.Match(ctx, tx, *e.StatementLineID, "bank_entry", e.ID); err != nil && !errs.Is(err, core.ID, "NOT_MATCHABLE") {
+			return err
+		}
+		return nil
 	case Arrive:
 		f := fact(e, "fund_transfer_in", *in.ArrivedOn, []string{"bank", "in_transit"}, rate)
 		if err := f.Publish(m, ctx, tx); err != nil {

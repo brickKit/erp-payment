@@ -12,6 +12,7 @@ import (
 	core "github.com/brickKit/erp-payment/v3/internal/core"
 	facts "github.com/brickKit/erp-payment/v3/internal/facts"
 	masterdata "github.com/brickKit/erp-payment/v3/internal/masterdata"
+	matching "github.com/brickKit/erp-payment/v3/internal/matching"
 
 	sdkauthz "github.com/brickKit/be-sdk-go/v3/authz"
 	"github.com/brickKit/be-sdk-go/v3/canon"
@@ -206,7 +207,10 @@ func RegisterReceipt(m *core.Base, c *httpx.Context) error {
 		if err := f.Publish(m, ctx, tx); err != nil {
 			return idem.Outcome{}, err
 		}
-		return core.IDResult(id), changed(m, ctx, tx, actor, core.OpReceiptRegister, id)
+		if err := changed(m, ctx, tx, actor, core.OpReceiptRegister, id); err != nil {
+			return idem.Outcome{}, err
+		}
+		return core.IDResult(id), matching.Document(ctx, tx, a.ID, &in.BankReference) // a line waiting for it (BR01)
 	})
 	if err != nil {
 		return err

@@ -8,10 +8,12 @@
 
 | 包 | 一句话 | 依赖（本组件内） |
 | --- | --- | --- |
-| `requests` | 付款建议与付款申请：认领、审批、放行确认、执行、退回、取消、续期与失效（PR01–PR08） | `bankaccounts`、`core`、`facts`、`masterdata`、`orgunits` |
-| `entries` | 资金调拨（转出、到账）与银行手续费、利息：审批后发布会计事实（BE01–BE04） | `bankaccounts`、`core`、`facts`、`masterdata` |
-| `receipts` | 收款单：登记即到账、冲正，资金事实（RC01、RC02） | `bankaccounts`、`core`、`facts`、`masterdata` |
+| `statements` | 对账单行：登记、匹配、差错、生成科目收付、对账情况（BR01–BR04） | `bankaccounts`、`core`、`entries`、`masterdata`、`matching` |
+| `requests` | 付款建议与付款申请：认领、审批、放行确认、执行、退回、取消、续期与失效（PR01–PR08） | `bankaccounts`、`core`、`facts`、`masterdata`、`matching`、`orgunits` |
+| `entries` | 资金调拨（转出、到账）与银行手续费、利息：审批后发布会计事实（BE01–BE04） | `bankaccounts`、`core`、`facts`、`masterdata`、`matching` |
+| `receipts` | 收款单：登记即到账、冲正，资金事实（RC01、RC02） | `bankaccounts`、`core`、`facts`、`masterdata`、`matching` |
 | `bankaccounts` | 公司银行账户，账号是受限字段 | `core`、`masterdata` |
+| `matching`（共用） | 对账单行与单据的匹配：能匹配的单据、手工与按流水号的匹配、没被匹配的单据 | `core` |
 | `orgunits` | 部门投影（协议 02） | `core`、`masterdata` |
 | `facts` | 两份共享契约的形状与发布（`Fund`、`Accounting`）；系统面 `FactService.Read` | `core`、`masterdata` |
 | `masterdata`（共用） | 事务外取证：主数据组件、汇率快照、销售的订单、财务的认领服务 | `core` |
@@ -21,8 +23,9 @@
 
 | 层 | 包 |
 | --- | --- |
+| 5 | `statements` |
 | 4 | `entries`、`receipts`、`requests` |
-| 3 | `bankaccounts`、`orgunits`、`facts` |
+| 3 | `bankaccounts`、`orgunits`、`facts`、`matching` |
 | 2 | `masterdata` |
 | 1 | `core` |
 

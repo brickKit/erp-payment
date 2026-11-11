@@ -10,6 +10,7 @@ import (
 	core "github.com/brickKit/erp-payment/v3/internal/core"
 	facts "github.com/brickKit/erp-payment/v3/internal/facts"
 	masterdata "github.com/brickKit/erp-payment/v3/internal/masterdata"
+	matching "github.com/brickKit/erp-payment/v3/internal/matching"
 
 	"github.com/brickKit/be-sdk-go/v3/db"
 	"github.com/brickKit/be-sdk-go/v3/httpx"
@@ -360,10 +361,12 @@ func execute(m *core.Base, ctx context.Context, cur Request, actor string, in ac
 		if err := f.Publish(m, ctx, tx); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `UPDATE payment_request SET state = $2, paid_amount = $3, paid_on = $4, bank_reference = $5,
+		if _, err := tx.Exec(ctx, `UPDATE payment_request SET state = $2, paid_amount = $3, paid_on = $4, bank_reference = $5,
 			fact_id = $6, version = version + 1, updated_at = now() WHERE id = $1`, r.ID, Paid, paid, *in.PaidOn,
-			*in.BankReference, factID)
-		return err
+			*in.BankReference, factID); err != nil {
+			return err
+		}
+		return matching.Document(ctx, tx, r.BankAccountID, in.BankReference) // a line waiting for it (BR01)
 	})
 	return out, err
 }

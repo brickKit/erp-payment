@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brickkit.dev/erp-payment/events/erp.payment_notification.intent.v1.schema.json",
+  "title": "erp.payment_notification.intent.v1",
+  "description": "The approval notifications of the flow kernel (be-protocol P18.10): a pending task with candidates is delivered to them, a task that leaves pending withdraws it, the task's version as the merge sequence; infra/notification takes them in when the deployment lists this component as a sender.",
+  "$ref": "https://brickkit.dev/be-protocol/schemas/notification/intent.v1.schema.json"
+}

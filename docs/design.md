@@ -169,6 +169,7 @@
 | 收款单 | `erp.payment`，`erp.receipt.changed.v1` | 完整状态 |
 | 付款申请 | `erp.payment`，`erp.payment_request.changed.v1` | 完整状态（行与认领身份；不带账号） |
 | 审批任务 | `erp.payment`，`erp.payment_task.changed.v1`；心跳 `erp.payment_task.heartbeat.v1` | 线协议的共享任务契约 `schemas/flow/task.v1`（按版本覆盖）与 `task_heartbeat.v1`（有待处理或暂停的任务时每 5 分钟） |
+| 审批待办的通知 | `erp.payment`，`erp.payment_notification.intent.v1` | 线协议的共享意图契约 `schemas/notification/intent.v1`：SDK 的流程内核随任务投影发出（P18.10），`infra/notification` 收 |
 
 增量事实按 `fact_id` 去重；完整状态事件按版本覆盖。
 
@@ -185,6 +186,8 @@
 | 身份、授权、审计 | 是 | 平台 | — |
 
 ## 实现状态
+
+3.0.17：be-sdk-go alpha.128（全系统同一个 SDK 版本）：流程内核随任务投影发审批待办的通知意图 `erp.payment_notification.intent.v1`（线协议 P18.10），清单与契约（`contract/events/`）声明它；装配项目阶段计划 C8。业务行为不变。
 
 3.0.16：be-sdk-go alpha.127（全系统同一个 SDK 版本；授权定义拒绝不合“资源类型 + 一段动作”的操作键，线协议 P8.7，C7 复盘 R2）及随之连锁的版本；本组件行为不变。
 

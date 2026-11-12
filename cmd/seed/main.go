@@ -6,8 +6,9 @@
 //     entries and reconciles in CN01, reads the whole number; test.finance.lead: approves payment requests and entries
 //     in every legal entity, releases and executes them in ES01 and US01 (the seed user applies: an approver or a
 //     releaser is never the applicant); the seed user also lists the paused approval tasks;
-//   - payment policies: every legal entity's approver is the holders of its position FIN-MGR (mdm/org's seed makes
-//     it, mdm/employee's appoints the employee test.finance.lead is linked to);
+//   - payment policies: CN01's approver is the holders of its position FIN-MGR (mdm/org's seed makes it, mdm/employee's
+//     links test.finance.lead to its holder); ES01's and US01's is test.finance.lead by name (an employee holds
+//     positions of its own legal entity only: one person heads one legal entity's finance);
 //   - company bank accounts: CN01 a basic and a general CNY account and a USD one; ES01 an EUR one; US01 a USD one;
 //   - receipts against erp/billing's issued invoices in the base currency (paid whole, paid half, left open), one
 //     from a payer not known (finance holds it in suspense), one reversed; finance settles them from the fund facts;
@@ -157,7 +158,7 @@ var (
 type entity struct {
 	code, id, currency string
 	accounts           map[string]string
-	approver           string // the position FIN-MGR: its holders approve the legal entity's payments
+	approver           map[string]any // the policy: CN01 the position FIN-MGR, the others test.finance.lead
 }
 
 func main() {
@@ -190,6 +191,9 @@ func main() {
 	actors := map[string]client{"cashier": {seed.NewClient(base, accounts[cashier].Token)},
 		"lead": {seed.NewClient(base, accounts[lead].Token)}}
 	for _, code := range entities {
+		if code != "CN01" {
+			les[code].approver = map[string]any{"approver_principal": accounts[lead].Principal}
+		}
 		bankAccounts(c, les[code])
 		policy(c, les[code])
 	}
@@ -224,14 +228,14 @@ func read(t string) map[string]*entity {
 		if les[code] == nil {
 			fail("mdm/org has no legal entity %s: run its seed first", code)
 		}
-		for _, p := range org.pages("/api/org/positions?state=active&q=FIN-MGR&legal_entity_id="+les[code].id, "positions") {
-			if p["code"] == "FIN-MGR" {
-				les[code].approver = p["id"].(string)
-			}
+	}
+	for _, p := range org.pages("/api/org/positions?state=active&q=FIN-MGR&legal_entity_id="+les["CN01"].id, "positions") {
+		if p["code"] == "FIN-MGR" {
+			les["CN01"].approver = map[string]any{"approver_position_id": p["id"]}
 		}
-		if les[code].approver == "" {
-			fail("mdm/org has no %s position FIN-MGR: run its seed first", code)
-		}
+	}
+	if les["CN01"].approver == nil {
+		fail("mdm/org has no CN01 position FIN-MGR: run its seed first")
 	}
 	return les
 }
@@ -244,10 +248,11 @@ func policy(c client, e *entity) {
 	if code != 200 {
 		fail("payment policy %s: %d %v", e.code, code, cur)
 	}
-	if cur["approver_position_id"] == e.approver {
+	if cur["approver_position_id"] == e.approver["approver_position_id"] && cur["approver_principal"] == e.approver["approver_principal"] {
 		return
 	}
-	c.must("PUT", path, map[string]any{"approver_position_id": e.approver, "version": cur["version"]})
+	c.must("PUT", path, map[string]any{"approver_position_id": e.approver["approver_position_id"],
+		"approver_principal": e.approver["approver_principal"], "version": cur["version"]})
 }
 
 // demoAccounts are each legal entity's accounts: name, bank, number, currency ("" is the base currency).

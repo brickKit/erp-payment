@@ -12,7 +12,7 @@
 | 文件 | 内容 |
 | --- | --- |
 | `definition.go` | `Version`、端口、迁移、自己的配置键（没有）；`Definition()` 把身份、流、资源与操作（`core.Definitions()`）收成组件定义 |
-| `module.go` | `Module` 与 `New`；`Routes`（用户面的每条路由 → 模块的处理函数与操作）、`Services`（系统面：`FactService` 任一组件 → `services.go`）、`Subscriptions`（部门事件 → `orgunits`）、`Jobs`（每个后台工作 → 模块）；`job`、`received` 把“先收 `*core.Base`”的模块函数适配成 SDK 的签名 |
+| `module.go` | `Module` 与 `New`（建流程内核：两种流程、钩子按单据类型转给 `requests`、`entries`，装了 `mdm/employee` 时目录是员工投影；`FlowKernel` 交给宿主登记标准路由，`Start` 运行员工投影）；`Routes`（用户面的每条路由 → 模块的处理函数与操作）、`Services`（系统面：`FactService` 任一组件 → `services.go`）、`Subscriptions`（部门事件 → `orgunits`，员工的流 → 内核的员工投影）、`Jobs`（每个后台工作 → 模块；内核的重新解析与心跳）；`job`、`received` 把“先收 `*core.Base`”的模块函数适配成 SDK 的签名 |
 | `services.go` | 系统面的方法（`Read` → `facts`）转给模块 |
 | `checks.go` | `RecoveryChecks`：整套恢复时审计过的五种对象的存在性与版本（银行账户、收款单、付款申请、调拨与收付、对账单行）；检查 `erp.payment.held_claims`（`requests.HeldClaims`）；单号允许缺号，没有作废 |
 | `contract_test.go` | 单元测试：清单的 `configSchema` 与 `events`、OpenAPI 与路由一一对应、合并安全 |
@@ -21,7 +21,7 @@
 
 ## 依赖与被依赖
 
-- 依赖：`internal/bankaccounts`、`internal/core`、`internal/entries`、`internal/facts`、`internal/orgunits`、`internal/receipts`、`internal/requests`、`internal/statements`。
+- 依赖：`internal/bankaccounts`、`internal/core`、`internal/entries`、`internal/facts`、`internal/orgunits`、`internal/policies`、`internal/receipts`、`internal/requests`、`internal/statements`。
 - 被依赖：`main.go`、外壳、`itest/`。
 - 模块不能反过来引用这里（会成环）：模块需要的名字放 `internal/core`。
 

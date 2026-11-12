@@ -47,7 +47,7 @@ func (fx *fixture) entries() {
 	fx.entryAction(fx.alice, cid, "submit", nil)
 	code, out = fx.alice.do("PATCH", "/api/payment/entries/"+cid, fx.entryBody("charge", fx.cny, "", "26"))
 	assert.Equal(t, 409, code, "a submitted entry is not changed (BE01): %v", out)
-	fx.entryRefused(fx.alice, cid, "approve", nil, "APPROVER_IS_SUBMITTER")
+	fx.entryRefused(fx.alice, cid, "approve", nil, "SELF_APPROVAL") // the flow kernel's check by person (3.0.11)
 	charge = fx.entryAction(fx.bob, cid, "approve", nil)
 	assert.Equal(t, "posted", charge["state"])
 	f := fx.factWhere(core.AccountingFact, "rule_key", "bank_charge")

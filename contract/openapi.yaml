@@ -8,8 +8,47 @@ info:
     and the operation in x-operation; what the caller may not see answers 404 (every resource carries the legal entity dimension,
     payment requests the department too). Errors are application/problem+json with a reason. Lists page by cursor only (protocol
     14). Amounts are decimal strings. The fund and accounting facts are erp/finance''s shared contracts (events/); the read
-    of the incremental facts is on the system surface (proto).'
+    of the incremental facts is on the system surface (proto). Payment requests and entries are approved on the SDK''s flow
+    kernel (be-protocol chapter 17): its standard routes /be/flow/tasks (a decision, a task, the paused tasks) are registered
+    by the SDK and specified by the protocol, not here; the approve and reject routes below decide the caller''s task of the
+    document through it (Idempotency-Key optional there: else the task, the caller and the decision). The approver is the
+    legal entity''s payment policy''s (a position of mdm/org or a principal).'
 paths:
+  /api/payment/policies/{legal_entity_id}:
+    parameters:
+    - {name: legal_entity_id, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: getPaymentPolicy
+      x-operation: erp.payment.policy.read
+      summary: 'A legal entity''s payment policy: who approves its payment requests and entries (version 0: never set, no approver)'
+      responses:
+        '200':
+          description: the policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentPolicy'
+        default:
+          $ref: '#/components/responses/problem'
+    put:
+      operationId: putPaymentPolicy
+      x-operation: erp.payment.policy.manage
+      summary: 'Set the approver: a position or a principal, not both; by version (later submissions only)'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentPolicyIn'
+      responses:
+        '200':
+          description: the policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentPolicy'
+        default:
+          $ref: '#/components/responses/problem'
   /api/payment/bank-accounts:
     get:
       operationId: listBankAccounts
@@ -451,7 +490,7 @@ paths:
     post:
       operationId: approveRequest
       x-operation: erp.payment.request.approve
-      summary: Approve; not by the applicant (PR03)
+      summary: 'Approve: the decision on the caller''s approval task; a candidate, not the applicant''s person (PR03)'
       requestBody:
         required: false
         content:
@@ -473,7 +512,7 @@ paths:
     post:
       operationId: rejectRequest
       x-operation: erp.payment.request.approve
-      summary: Reject back to draft with a reason; the claims released (PR03)
+      summary: 'Reject back to draft with a reason: the rejection of the caller''s approval task, or of an approved request not yet released; the claims released (PR03)'
       requestBody:
         required: true
         content:
@@ -712,7 +751,7 @@ paths:
     post:
       operationId: approveEntry
       x-operation: erp.payment.entry.approve
-      summary: 'Approve and post; not by the maker (BE02): a transfer goes out into the money in transit'
+      summary: 'Approve and post: the decision on the caller''s approval task; a candidate, not the maker''s person (BE02): a transfer goes out into the money in transit'
       requestBody:
         required: false
         content:
@@ -734,7 +773,7 @@ paths:
     post:
       operationId: rejectEntry
       x-operation: erp.payment.entry.approve
-      summary: Reject back to draft with a reason (BE02)
+      summary: 'Reject back to draft with a reason: the rejection of the caller''s approval task (BE02)'
       requestBody:
         required: true
         content:
@@ -1004,6 +1043,21 @@ components:
               detail:
                 type: string
   schemas:
+    PaymentPolicyIn:
+      type: object
+      additionalProperties: false
+      properties:
+        approver_position_id: {type: [string, 'null'], format: uuid, description: 'a position of mdm/org: its holders in the legal entity approve (needs mdm/employee)'}
+        approver_principal: {type: [string, 'null'], minLength: 1, description: 'the one principal who approves'}
+        version: {type: integer, description: 'the version the change is made on (0: never set); none: whatever it is'}
+    PaymentPolicy:
+      type: object
+      required: [legal_entity_id, approver_position_id, approver_principal, version]
+      properties:
+        legal_entity_id: {type: string, format: uuid}
+        approver_position_id: {type: [string, 'null'], format: uuid}
+        approver_principal: {type: [string, 'null']}
+        version: {type: integer, description: '0: never set'}
     Decimal:
       type: string
       pattern: ^[0-9]+(\.[0-9]+)?$

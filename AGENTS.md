@@ -1,6 +1,6 @@
 # erp/payment
 
-收付款组件的代码。用法与边界在 `BRICKKIT.md`，为什么这样设计（术语、数据、状态、规则、未决问题）在 [docs/design.md](docs/design.md)。跨组件的规则在装配项目 be-assembly-standard 的协议 05（付款认领、资金事实与核销、资金调拨与科目收付）、协议 09（审批与职责分离）、协议 14（单号、金额、列表）、协议 02（部门投影）、安全 07（维度与受限字段）与决定 D47。
+收付款组件的代码。用法与边界在 `BRICKKIT.md`，为什么这样设计（术语、数据、状态、规则、未决问题）在 [docs/design.md](docs/design.md)。跨组件的规则在装配项目 be-assembly-standard 的协议 05（付款认领、资金事实与核销、资金调拨与科目收付）、协议 09（审批与职责分离；运行时的流程内核是线协议第 17 章）、协议 14（单号、金额、列表）、协议 02（部门投影）、安全 07（维度与受限字段）与决定 D47。
 
 ## 代码地图
 
@@ -26,6 +26,7 @@
 | [`entries`](internal/entries/AGENTS.md) | 资金调拨（转出、到账）与银行手续费、利息，审批后发布会计事实 | `bank_entry` |
 | [`statements`](internal/statements/AGENTS.md) | 对账单行：登记、自动与手工匹配、差错、生成科目收付、对账情况 | `statement_line` |
 | [`facts`](internal/facts/AGENTS.md) | 两份共享契约（资金事实、会计事实）的形状与发布；系统面 `FactService.Read` | `payment_fact`（写入在 `core.Fact`） |
+| [`policies`](internal/policies/AGENTS.md) | 按法人的付款政策：审批人（岗位或指定个人） | `payment_policy` |
 | [`orgunits`](internal/orgunits/AGENTS.md) | 部门投影（协议 02）：部门路径复制到付款申请上 | `org_realign`（投影本身在 SDK 的表里） |
 
 模块共用的（不属于某一个业务）：[`masterdata`](internal/masterdata/AGENTS.md)（事务外取证：主数据、汇率快照、销售的订单、财务的认领服务）、[`matching`](internal/matching/AGENTS.md)（对账单行与单据的匹配：单据模块在自己的事务里调它）、[`core`](internal/core/AGENTS.md)（名字、资源与操作的定义、错误与校验、生命周期表的通用写法、增量事实 `Fact`）。
@@ -35,6 +36,7 @@
 | 想改 | 从这里开始 | 然后 |
 | --- | --- | --- |
 | 一个维度、一个操作、列表能筛选的字段 | `internal/core/names.go` | `docs/design.md` 的命令与查询、`BRICKKIT.md` 的契约索引；路由的登记在 `payment/module.go` |
+| 审批：谁批、自审怎样拦、待办里的任务、放行 | `docs/design.md` 的 PR02–PR08、BE02 与“规则要点”的审批；线协议第 17 章 | `internal/requests/approval.go`、`internal/entries/approval.go`、`internal/policies`、入口 `payment/module.go` 的 `New`；SDK 的 `flow` 包 |
 | 加字段、加接口、改事件 | 装配项目 be-assembly-standard 规范里的“改动配方” | 资金事实与会计事实的形状属于 `erp/finance` 的共享契约，要改先改那边 |
 
 ## 构建与测试

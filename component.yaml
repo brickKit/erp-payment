@@ -4,7 +4,7 @@ kind: Component
 metadata:
   id: erp/payment
   name: Payment
-  version: 3.0.10
+  version: 3.0.11
   description: "The results of money, registered offline: company bank accounts, receipts, payment requests that claim erp/finance's open items before approval and confirm them before the money goes out, transfers with bank charges and interest, and the manual reconciliation of bank statements; the fund and accounting facts by erp/finance's shared contracts (protocol 05, D47)"
   repository: https://github.com/brickKit/erp-payment
 
@@ -17,14 +17,21 @@ dependencies:
       optional: true
     - id: erp/sales@3.0.52
       optional: true
+    - id: mdm/employee@3.0.5
+      optional: true
 
 events:
   publishes:
     - erp.payment.accounting_fact.v1
     - erp.payment.fund_fact.v1
     - erp.payment_request.changed.v1
+    - erp.payment_task.changed.v1
+    - erp.payment_task.heartbeat.v1
     - erp.receipt.changed.v1
   subscribes:
+    - mdm.employee.account_link.changed.v1
+    - mdm.employee.appointment.changed.v1
+    - mdm.employee.changed.v1
     - mdm.org_unit.changed.v1
 
 deployment:

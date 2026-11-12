@@ -8,12 +8,15 @@ import (
 	core "github.com/brickKit/erp-payment/v3/internal/core"
 	entries "github.com/brickKit/erp-payment/v3/internal/entries"
 	orgunits "github.com/brickKit/erp-payment/v3/internal/orgunits"
+	policies "github.com/brickKit/erp-payment/v3/internal/policies"
 	receipts "github.com/brickKit/erp-payment/v3/internal/receipts"
 	requests "github.com/brickKit/erp-payment/v3/internal/requests"
 	statements "github.com/brickKit/erp-payment/v3/internal/statements"
 
+	sdkauthz "github.com/brickKit/be-sdk-go/v3/authz"
 	"github.com/brickKit/be-sdk-go/v3/db"
 	"github.com/brickKit/be-sdk-go/v3/events"
+	"github.com/brickKit/be-sdk-go/v3/flow"
 	"github.com/brickKit/be-sdk-go/v3/grpcx"
 	"github.com/brickKit/be-sdk-go/v3/httpx"
 	"github.com/brickKit/be-sdk-go/v3/runtime"
@@ -26,16 +29,60 @@ import (
 // under internal/ (their map is internal/AGENTS.md).
 type Module struct {
 	paymentv3.UnimplementedFactServiceServer
-	b *core.Base
+	b         *core.Base
+	employees *flow.Employees // nil without mdm/employee
 }
 
-// New builds the module from its runtime.
+// New builds the module from its runtime: the flow kernel of the payment requests' and entries' approvals (be-protocol
+// chapter 17), its hooks the two modules', its directory the employee projection when the deployment has mdm/employee.
 func New(rt *runtime.Runtime) (*Module, error) {
 	b, err := core.NewBase(rt)
 	if err != nil {
 		return nil, err
 	}
-	return &Module{b: b}, nil
+	m := &Module{b: b}
+	k := &flow.Kernel{Component: core.ID, Stream: core.Stream, TaskEvent: core.TaskChanged, HeartbeatEvent: core.TaskHeartbeat,
+		Operation: core.OpFlowDecide, ManageOperation: core.OpFlowManage,
+		Definitions: []flow.Definition{requests.Flow(), entries.Flow()},
+		Hooks: flow.Hooks{
+			Document: func(ctx context.Context, tx db.Tx, d flow.Document) (int64, string, sdkauthz.Facts, error) {
+				if d.Type == core.EntryDocument {
+					return entries.FlowDocument(ctx, tx, d)
+				}
+				return requests.FlowDocument(ctx, tx, d)
+			},
+			Ended: func(ctx context.Context, tx db.Tx, i flow.Instance) error {
+				if i.Document.Type == core.EntryDocument {
+					return entries.FlowEnded(m.b, ctx, tx, i)
+				}
+				return requests.FlowEnded(m.b, ctx, tx, i)
+			}},
+		DB: rt.DB, Log: rt.Logger}
+	if rt.Events != nil {
+		k.Events = rt.Events
+	}
+	if rt.Audit != nil {
+		k.Audit = rt.Audit
+	}
+	if e, ok := flow.NewEmployees(rt); ok {
+		m.employees, k.Directory = e, e
+	}
+	if err := k.Check(); err != nil {
+		return nil, err
+	}
+	b.Flow = k
+	return m, nil
+}
+
+// FlowKernel gives the host the kernel, whose standard routes it registers after the module's (be-protocol P17.14).
+func (m *Module) FlowKernel() *flow.Kernel { return m.b.Flow }
+
+// Start runs the employee projection the approvals resolve against (be-protocol P17.8).
+func (m *Module) Start(ctx context.Context) error {
+	if m.employees == nil {
+		return nil
+	}
+	return m.employees.Start(ctx)
 }
 
 // Routes registers the user surface (contract/openapi.yaml).
@@ -46,6 +93,8 @@ func (m *Module) Routes(r *httpx.Routes) error {
 	h := func(f func(*core.Base, *httpx.Context) error) httpx.Handler {
 		return func(c *httpx.Context) error { return f(m.b, c) }
 	}
+	add("GET", "/api/payment/policies/:legal_entity_id", core.OpPolicyRead, h(policies.GetPolicy))                        // getPaymentPolicy
+	add("PUT", "/api/payment/policies/:legal_entity_id", core.OpPolicyManage, h(policies.PutPolicy))                      // putPaymentPolicy
 	add("GET", "/api/payment/bank-accounts", core.OpBankAccountRead, h(bankaccounts.ListBankAccounts))                    // listBankAccounts
 	add("POST", "/api/payment/bank-accounts", core.OpBankAccountWrite, h(bankaccounts.CreateBankAccount))                 // createBankAccount
 	add("GET", "/api/payment/bank-accounts/:id", core.OpBankAccountRead, h(bankaccounts.GetBankAccount))                  // getBankAccount
@@ -97,6 +146,9 @@ func (m *Module) Services(s *grpcx.Services) error {
 func (m *Module) Subscriptions(s *events.Subscriptions) error {
 	s.Add(events.Sub{Name: "org-unit-events", Streams: []string{core.OrgStream}, Types: []string{core.OrgUnitEvents},
 		Handle: m.received(orgunits.OnOrgUnit)})
+	if m.employees != nil {
+		s.Add(m.employees.Sub())
+	}
 	return nil
 }
 
@@ -110,6 +162,9 @@ func (m *Module) Jobs(j *work.Jobs) error {
 		MaxAttempts: work.Unlimited, Handle: m.job(orgunits.RealignOrgUnits)})
 	j.Add(work.Job{Name: requests.JobRenewClaim, Kind: work.Queue, Effect: work.IdempotentExternal,
 		MaxAttempts: work.Unlimited, Handle: m.job(requests.RenewClaim)})
+	j.Add(work.Job{Name: requests.JobReleaseClaims, Kind: work.Queue, Effect: work.IdempotentExternal,
+		MaxAttempts: work.Unlimited, Handle: m.job(requests.ReleaseClaims)})
+	m.b.Flow.Jobs(j) // paused approval tasks resolved again; the heartbeat
 	return nil
 }
 

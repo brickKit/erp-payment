@@ -11,6 +11,7 @@ import (
 	facts "github.com/brickKit/erp-payment/v3/internal/facts"
 	masterdata "github.com/brickKit/erp-payment/v3/internal/masterdata"
 	matching "github.com/brickKit/erp-payment/v3/internal/matching"
+	policies "github.com/brickKit/erp-payment/v3/internal/policies"
 
 	"github.com/brickKit/be-sdk-go/v3/db"
 	"github.com/brickKit/be-sdk-go/v3/httpx"
@@ -69,12 +70,13 @@ func Action(m *core.Base, command string) httpx.Handler {
 		if in.Version != nil && *in.Version != cur.Version {
 			return core.ErrVersion.New(fmt.Sprintf("the request is at version %d", cur.Version))
 		}
+		if d.Guard == GuardFlow { // a decision on the approval task (PR03)
+			return decide(m, c, ctx, cur, command, in.Reason)
+		}
 		var out Request
 		switch command {
 		case Submit:
 			out, err = submit(m, ctx, cur, actor)
-		case Approve:
-			out, err = approve(m, ctx, cur, actor)
 		case Reject, Cancel:
 			out, err = giveBack(m, ctx, cur, actor, command, in.Reason)
 		case Release:
@@ -166,6 +168,10 @@ func releaseAll(m *core.Base, ctx context.Context, claims []string) error {
 
 // submit is PR02: the payee's items checked, every line claimed (all or none), then submitted.
 func submit(m *core.Base, ctx context.Context, cur Request, actor string) (Request, error) {
+	approver, err := policies.ApproverOf(m, ctx, cur.LegalEntityID) // before anything is claimed
+	if err != nil {
+		return cur, err
+	}
 	withFinance := masterdata.Deployed(m, core.Finance)
 	claimed := map[string][2]string{} // line -> claim, its end
 	if withFinance {
@@ -196,9 +202,11 @@ func submit(m *core.Base, ctx context.Context, cur Request, actor string) (Reque
 				return err
 			}
 		}
-		_, err := tx.Exec(ctx, `UPDATE payment_request SET state = $2, applicant_id = $3, reason = NULL, version = version + 1,
-			updated_at = now() WHERE id = $1`, r.ID, Submitted, actor)
-		return err
+		if _, err := tx.Exec(ctx, `UPDATE payment_request SET state = $2, applicant_id = $3, reason = NULL,
+			version = version + 1, updated_at = now() WHERE id = $1`, r.ID, Submitted, actor); err != nil {
+			return err
+		}
+		return startApproval(m, ctx, tx, r, approver, actor)
 	})
 	if err == nil && !moved && len(claimed) > 0 { // submitted meanwhile by another call: these claims are not the request's
 		var made []string
@@ -210,20 +218,8 @@ func submit(m *core.Base, ctx context.Context, cur Request, actor string) (Reque
 	return out, err
 }
 
-// approve is PR03: not by the applicant.
-func approve(m *core.Base, ctx context.Context, cur Request, actor string) (Request, error) {
-	if cur.ApplicantID != nil && *cur.ApplicantID == actor {
-		return cur, core.ErrApprover.New("the request was submitted by " + actor + ": another approves it")
-	}
-	out, _, err := moved(m, ctx, cur.ID, Approve, actor, func(tx db.Tx, r Request) error {
-		_, err := tx.Exec(ctx, `UPDATE payment_request SET state = $2, approver_id = $3, version = version + 1, updated_at = now()
-			WHERE id = $1`, r.ID, Approved, actor)
-		return err
-	})
-	return out, err
-}
-
-// giveBack is a rejection back to draft with its reason (PR03) or a cancellation (PR07): the claims released first.
+// giveBack is the rejection of an approved request back to draft with its reason (PR03) or a cancellation (PR07):
+// the claims released first, the approval withdrawn or superseded.
 func giveBack(m *core.Base, ctx context.Context, cur Request, actor, command string, reason *string) (Request, error) {
 	if err := releaseAll(m, ctx, cur.claims()); err != nil {
 		return cur, err
@@ -233,6 +229,9 @@ func giveBack(m *core.Base, ctx context.Context, cur Request, actor, command str
 		to = Cancelled
 	}
 	out, _, err := moved(m, ctx, cur.ID, command, actor, func(tx db.Tx, r Request) error {
+		if err := endApproval(m, ctx, tx, r); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `UPDATE payment_request_line SET claim_id = NULL, claim_expires_at = NULL
 			WHERE request_id = $1`, r.ID); err != nil {
 			return err
@@ -244,10 +243,16 @@ func giveBack(m *core.Base, ctx context.Context, cur Request, actor, command str
 	return out, err
 }
 
-// release is PR04: not by the applicant; every claim confirmed at erp/finance before the money goes out.
+// release is PR04: not by the applicant's person, the approval covering the request; every claim confirmed at
+// erp/finance before the money goes out.
 func release(m *core.Base, ctx context.Context, cur Request, actor string) (Request, error) {
-	if cur.ApplicantID != nil && *cur.ApplicantID == actor {
-		return cur, core.ErrApprover.New("the request was submitted by " + actor + ": another releases it")
+	if err := m.RT.DB.Tx(ctx, func(ctx context.Context, tx db.Tx) error {
+		if err := notApplicant(m, ctx, tx, cur, actor); err != nil {
+			return err
+		}
+		return released(m, ctx, tx, cur)
+	}); err != nil {
+		return cur, err
 	}
 	if masterdata.Deployed(m, core.Finance) {
 		for _, c := range cur.claims() {
@@ -263,6 +268,9 @@ func release(m *core.Base, ctx context.Context, cur Request, actor string) (Requ
 		}
 	}
 	out, _, err := moved(m, ctx, cur.ID, Release, actor, func(tx db.Tx, r Request) error {
+		if err := released(m, ctx, tx, r); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `UPDATE payment_request_line SET claim_expires_at = NULL WHERE request_id = $1`, r.ID); err != nil {
 			return err
 		}
@@ -343,6 +351,9 @@ func execute(m *core.Base, ctx context.Context, cur Request, actor string, in ac
 		return cur, err
 	}
 	out, _, err := moved(m, ctx, cur.ID, Execute, actor, func(tx db.Tx, r Request) error {
+		if err := released(m, ctx, tx, r); err != nil { // the approval still covers what is paid (P17.7)
+			return err
+		}
 		factID := ids.New().String()
 		f := facts.Fund{FactID: factID, Source: facts.Source{Component: core.ID, DocumentType: "payment_request",
 			DocumentID: r.ID, DocumentNumber: &r.Number}, LegalEntityID: r.LegalEntityID, BusinessDate: *in.PaidOn,

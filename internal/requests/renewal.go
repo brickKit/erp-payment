@@ -98,6 +98,9 @@ func lapse(m *core.Base, ctx context.Context, r Request) error {
 	}
 	reason := LapseReason
 	_, _, err := moved(m, ctx, r.ID, Lapse, "", func(tx db.Tx, cur Request) error {
+		if err := endApproval(m, ctx, tx, cur); err != nil { // PR08: withdrawn, or superseded when approved
+			return err
+		}
 		if _, err := tx.Exec(ctx, `UPDATE payment_request_line SET claim_id = NULL, claim_expires_at = NULL
 			WHERE request_id = $1`, cur.ID); err != nil {
 			return err

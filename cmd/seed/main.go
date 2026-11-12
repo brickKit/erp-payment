@@ -5,7 +5,9 @@
 //     number); test.cashier.cn, CN01's cashier: registers receipts, releases and executes payment requests, makes
 //     entries and reconciles in CN01, reads the whole number; test.finance.lead: approves payment requests and entries
 //     in every legal entity, releases and executes them in ES01 and US01 (the seed user applies: an approver or a
-//     releaser is never the applicant);
+//     releaser is never the applicant); the seed user also lists the paused approval tasks;
+//   - payment policies: every legal entity's approver is the holders of its position FIN-MGR (mdm/org's seed makes
+//     it, mdm/employee's appoints the employee test.finance.lead is linked to);
 //   - company bank accounts: CN01 a basic and a general CNY account and a USD one; ES01 an EUR one; US01 a USD one;
 //   - receipts against erp/billing's issued invoices in the base currency (paid whole, paid half, left open), one
 //     from a payer not known (finance holds it in suspense), one reversed; finance settles them from the fund facts;
@@ -72,9 +74,11 @@ func (c client) must(method, path string, body any, header ...string) map[string
 }
 
 // granted is must for another account's first writes: while its grant has not reached the component yet the
-// request answers 403 or 404 (nothing written), and it is sent again for up to a minute.
+// request answers 403 or 404 (nothing written), and it is sent again for up to three minutes. An approval waits too:
+// a task made before the employee projection was current waits paused until the kernel resolves it again (every
+// minute), and the lead is no candidate till then (403).
 func (c client) granted(method, path string, body any, header ...string) map[string]any {
-	code, out, err := c.UntilGranted(time.Minute, method, path, body, header...)
+	code, out, err := c.UntilGranted(3*time.Minute, method, path, body, header...)
 	check(err)
 	if code != 200 {
 		fail("%s %s: %d %v", method, path, code, out)
@@ -106,8 +110,11 @@ func segment(op [2]string, legalEntities []string, number bool) sdkauthz.Segment
 		le = sdkauthz.Atom{Kind: "in", Values: legalEntities}
 	}
 	s.Atoms = map[string]sdkauthz.Atom{"legal_entity": le}
-	if op[0] == "erp.payment.request" {
+	switch op[0] {
+	case "erp.payment.request":
 		s.Atoms["department"] = sdkauthz.Atom{Kind: "all"}
+	case "erp.payment.flow": // the approval tasks' resource has no dimension
+		s.Atoms = map[string]sdkauthz.Atom{}
 	}
 	if number && op[0] == "erp.payment.bank_account" {
 		s.ReadFields = []string{"number"}
@@ -138,14 +145,19 @@ var (
 	entApprove = [2]string{"erp.payment.entry", "erp.payment.entry.approve"}
 	stRead     = [2]string{"erp.payment.statement", "erp.payment.statement.read"}
 	stRec      = [2]string{"erp.payment.statement", "erp.payment.statement.reconcile"}
+	polRead    = [2]string{"erp.payment.policy", "erp.payment.policy.read"}
+	polManage  = [2]string{"erp.payment.policy", "erp.payment.policy.manage"}
+	flowDecide = [2]string{"erp.payment.flow", "erp.payment.flow.decide"}
+	flowManage = [2]string{"erp.payment.flow", "erp.payment.flow.manage"}
 	everyOp    = [][2]string{accRead, accManage, recRead, recReg, recRev, reqRead, reqEdit, reqApprove, reqExec, entRead,
-		entEdit, entApprove, stRead, stRec}
+		entEdit, entApprove, stRead, stRec, polRead, polManage, flowDecide, flowManage}
 )
 
 // entity is one legal entity and its bank accounts by name.
 type entity struct {
 	code, id, currency string
 	accounts           map[string]string
+	approver           string // the position FIN-MGR: its holders approve the legal entity's payments
 }
 
 func main() {
@@ -170,7 +182,7 @@ func main() {
 		{Key: "cashier-cn", Name: prefix + "出纳（CN01）", To: []string{cashier},
 			Segments: segments(cn, true, accRead, recRead, recReg, recRev, reqRead, reqExec, entRead, entEdit, stRead, stRec)},
 		{Key: "lead", Name: prefix + "财务主管（付款审批）", To: []string{lead},
-			Segments: segments(nil, false, accRead, recRead, reqRead, reqApprove, reqExec, entRead, entApprove, stRead)},
+			Segments: segments(nil, false, accRead, recRead, reqRead, reqApprove, reqExec, entRead, entApprove, stRead, flowDecide)},
 	}, accounts)
 	check(err)
 
@@ -179,6 +191,7 @@ func main() {
 		"lead": {seed.NewClient(base, accounts[lead].Token)}}
 	for _, code := range entities {
 		bankAccounts(c, les[code])
+		policy(c, les[code])
 	}
 	for _, code := range entities {
 		e := les[code]
@@ -211,8 +224,30 @@ func read(t string) map[string]*entity {
 		if les[code] == nil {
 			fail("mdm/org has no legal entity %s: run its seed first", code)
 		}
+		for _, p := range org.pages("/api/org/positions?state=active&q=FIN-MGR&legal_entity_id="+les[code].id, "positions") {
+			if p["code"] == "FIN-MGR" {
+				les[code].approver = p["id"].(string)
+			}
+		}
+		if les[code].approver == "" {
+			fail("mdm/org has no %s position FIN-MGR: run its seed first", code)
+		}
 	}
 	return les
+}
+
+// policy names the legal entity's approver when it differs: a second run changes nothing.
+func policy(c client, e *entity) {
+	path := "/api/payment/policies/" + e.id
+	code, cur, err := c.UntilGranted(30*time.Second, "GET", path, nil)
+	check(err)
+	if code != 200 {
+		fail("payment policy %s: %d %v", e.code, code, cur)
+	}
+	if cur["approver_position_id"] == e.approver {
+		return
+	}
+	c.must("PUT", path, map[string]any{"approver_position_id": e.approver, "version": cur["version"]})
 }
 
 // demoAccounts are each legal entity's accounts: name, bank, number, currency ("" is the base currency).

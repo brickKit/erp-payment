@@ -32,10 +32,10 @@ const (
 
 // The cells' further conditions (checked by the commands).
 const (
-	GuardClaimed      = "every line's claim made"
-	GuardNotApplicant = "not by the applicant"
-	GuardConfirmed    = "not by the applicant, every claim confirmed"
-	GuardReason       = "with a reason"
+	GuardClaimed   = "every line's claim made"
+	GuardFlow      = "a decision on the approval task (the flow kernel checks who)"
+	GuardConfirmed = "not by the applicant's person, the approval covering it, every claim confirmed"
+	GuardReason    = "with a reason"
 )
 
 var refuseEdit = core.RefuseCell("PR01", "only a draft is changed")
@@ -60,14 +60,14 @@ var Lifecycle = core.Table{
 		},
 		Approve: {
 			Draft:     core.RefuseCell("PR03", "a draft is submitted first"),
-			Submitted: {Rule: "PR03", Effect: core.Move, To: Approved, Op: core.OpRequestApprove, Guard: GuardNotApplicant},
+			Submitted: {Rule: "PR03", Effect: core.Move, To: Approved, Op: core.OpRequestApprove, Guard: GuardFlow},
 			Approved:  core.IgnoreCell("PR03"), Ready: core.IgnoreCell("PR03"), Paid: core.IgnoreCell("PR03"),
 			Returned:  core.RefuseCell("PR03", "a returned request is not approved"),
 			Cancelled: core.RefuseCell("PR03", "a cancelled request is not approved"),
 		},
 		Reject: {
 			Draft:     core.RefuseCell("PR03", "a draft is not rejected"),
-			Submitted: {Rule: "PR03", Effect: core.Move, To: Draft, Op: core.OpRequestApprove, Guard: GuardReason},
+			Submitted: {Rule: "PR03", Effect: core.Move, To: Draft, Op: core.OpRequestApprove, Guard: GuardFlow},
 			Approved:  {Rule: "PR03", Effect: core.Move, To: Draft, Op: core.OpRequestApprove, Guard: GuardReason},
 			Ready:     core.RefuseCell("PR03", "a released request is cancelled, not rejected"),
 			Paid:      core.RefuseCell("PR03", "a paid request is not rejected"),

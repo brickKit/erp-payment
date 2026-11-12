@@ -164,9 +164,9 @@ func Create(m *core.Base, ctx context.Context, req idem.Request, actor string, c
 	out, _, err := idem.Do(ctx, m.RT.DB, req, func(ctx context.Context, tx db.Tx) (idem.Outcome, error) {
 		id := ids.New().String()
 		if _, err := tx.Exec(ctx, `INSERT INTO bank_entry (id, number, legal_entity_id, kind, bank_account_id, to_bank_account_id,
-			currency, amount, entry_date, description, maker_id, statement_line_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-			$10, $11, $12)`, id, number, ch.in.LegalEntityID, ch.in.Kind, ch.in.BankAccountID, ch.in.ToBankAccountID,
-			ch.currency, ch.amount, ch.in.EntryDate, ch.in.Description, actor, line); err != nil {
+			currency, amount, entry_date, description, maker_id, statement_line_id, timezone) VALUES ($1, $2, $3, $4, $5, $6, $7,
+			$8, $9, $10, $11, $12, $13)`, id, number, ch.in.LegalEntityID, ch.in.Kind, ch.in.BankAccountID, ch.in.ToBankAccountID,
+			ch.currency, ch.amount, ch.in.EntryDate, ch.in.Description, actor, line, ch.le.Timezone); err != nil {
 			return idem.Outcome{}, err
 		}
 		_, err := changed(m, ctx, tx, actor, core.OpEntryEdit, id)
@@ -250,8 +250,9 @@ func UpdateEntry(m *core.Base, c *httpx.Context) error {
 			return core.ErrVersion.New(fmt.Sprintf("the entry is at version %d", e.Version))
 		}
 		if _, err := tx.Exec(ctx, `UPDATE bank_entry SET kind = $2, bank_account_id = $3, to_bank_account_id = $4, currency = $5,
-			amount = $6, entry_date = $7, description = $8, version = version + 1, updated_at = now() WHERE id = $1`, e.ID,
-			in.Kind, in.BankAccountID, in.ToBankAccountID, ch.currency, ch.amount, in.EntryDate, in.Description); err != nil {
+			amount = $6, entry_date = $7, description = $8, timezone = $9, version = version + 1, updated_at = now()
+			WHERE id = $1`, e.ID, in.Kind, in.BankAccountID, in.ToBankAccountID, ch.currency, ch.amount, in.EntryDate,
+			in.Description, ch.le.Timezone); err != nil {
 			return err
 		}
 		out, err = changed(m, ctx, tx, actor, core.OpEntryEdit, e.ID)

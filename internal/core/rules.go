@@ -57,9 +57,15 @@ var (
 	// BR02: a statement line and a document that do not match (account, amount and direction, state, matched already)
 	ErrNotMatchable = errs.Define(ID, "NOT_MATCHABLE", errs.FailedPrecondition, 409, errs.RetryNo,
 		"The document does not match the statement line")
-	// PR03, PR04, BE02: an approver or releaser is not the one who submitted or made it (by account)
+	// PR04: a releaser is not the applicant's person (approvals are the flow kernel's: SELF_APPROVAL)
 	ErrApprover = errs.Define(ID, "APPROVER_IS_SUBMITTER", errs.FailedPrecondition, 409, errs.RetryNo,
-		"The one who submitted or made it does not approve or release it")
+		"The one who submitted it does not release it")
+	// PR02, BE02: the legal entity's payment policy names no approver
+	ErrNoApprover = errs.Define(ID, "NO_APPROVER_CONFIGURED", errs.FailedPrecondition, 409, errs.RetryNo,
+		"The legal entity's payment policy names no approver (a position or a principal)")
+	// PR04, PR05: the release check (be-protocol P17.7) did not release the request
+	ErrNotReleased = errs.Define(ID, "NOT_RELEASED", errs.FailedPrecondition, 409, errs.RetryNo,
+		"The document's approval does not cover it as it is now")
 )
 
 var (

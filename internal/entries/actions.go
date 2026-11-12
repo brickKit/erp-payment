@@ -8,9 +8,11 @@ import (
 	core "github.com/brickKit/erp-payment/v3/internal/core"
 	masterdata "github.com/brickKit/erp-payment/v3/internal/masterdata"
 	matching "github.com/brickKit/erp-payment/v3/internal/matching"
+	policies "github.com/brickKit/erp-payment/v3/internal/policies"
 
 	"github.com/brickKit/be-sdk-go/v3/db"
 	"github.com/brickKit/be-sdk-go/v3/errs"
+	"github.com/brickKit/be-sdk-go/v3/flow"
 	"github.com/brickKit/be-sdk-go/v3/httpx"
 )
 
@@ -45,8 +47,24 @@ func Action(m *core.Base, command string) httpx.Handler {
 			(in.ArrivedOn == nil || !core.DateForm.MatchString(*in.ArrivedOn) || *in.ArrivedOn < cur.EntryDate) {
 			return core.Invalid("arrived_on", "an arrival date (YYYY-MM-DD) not before the transfer's")
 		}
+		d := Lifecycle.Decide(cur.State, command)
+		if d.Guard == GuardFlow { // a decision on the approval task (BE02)
+			if d.Effect != core.Move {
+				return core.Refused(d, cur.State)
+			}
+			if in.Version != nil && *in.Version != cur.Version {
+				return core.ErrVersion.New(fmt.Sprintf("the entry is at version %d", cur.Version))
+			}
+			return decide(m, c, ctx, cur, command, in.Reason)
+		}
+		var approver flow.Binding
+		if command == Submit && d.Effect == core.Move { // before the transaction: who approves, the rate of the posting
+			if approver, err = policies.ApproverOf(m, ctx, cur.LegalEntityID); err != nil {
+				return err
+			}
+		}
 		var rate *masterdata.Rate
-		if command == Approve || command == Arrive {
+		if (command == Submit && d.Effect == core.Move) || command == Arrive {
 			le, err := masterdata.LegalEntityOf(m, ctx, cur.LegalEntityID)
 			if err != nil {
 				return err
@@ -79,6 +97,16 @@ func Action(m *core.Base, command string) httpx.Handler {
 			if err := apply(m, ctx, tx, e, command, actor, in, rate); err != nil {
 				return err
 			}
+			switch {
+			case command == Submit:
+				if err := startApproval(m, ctx, tx, e, approver, rate, actor); err != nil {
+					return err
+				}
+			case command == Cancel && e.State == Submitted: // a pending approval is withdrawn (BE04)
+				if err := m.Flow.WithdrawIn(ctx, tx, Document(e)); err != nil {
+					return err
+				}
+			}
 			out, err = changed(m, ctx, tx, actor, d.Op, e.ID)
 			return err
 		})
@@ -103,10 +131,7 @@ func apply(m *core.Base, ctx context.Context, tx db.Tx, e Entry, command, actor 
 		return set(`state = $2, reason = $3`, Draft, *in.Reason)
 	case Cancel:
 		return set(`state = $2`, Cancelled)
-	case Approve:
-		if e.MakerID == actor {
-			return core.ErrApprover.New("the entry was made by " + actor + ": another approves it")
-		}
+	case Approve: // in the decision's transaction (FlowEnded): the kernel checked who
 		rule, roles, to := "fund_transfer_out", []string{"in_transit", "bank"}, InTransit
 		switch e.Kind {
 		case "charge":

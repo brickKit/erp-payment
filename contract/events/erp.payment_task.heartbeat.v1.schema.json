@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brickkit.dev/erp-payment/events/erp.payment_task.heartbeat.v1.schema.json",
+  "title": "erp.payment_task.heartbeat.v1",
+  "description": "Every 5 minutes while the component has pending or paused approval tasks (be-protocol P17.18): infra/workflow marks its tasks possibly not current when it stops.",
+  "$ref": "https://brickkit.dev/be-protocol/schemas/flow/task_heartbeat.v1.schema.json"
+}

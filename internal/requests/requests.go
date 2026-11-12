@@ -156,10 +156,10 @@ func CreateRequest(m *core.Base, c *httpx.Context) error {
 	out, _, err := idem.Do(ctx, m.RT.DB, req, func(ctx context.Context, tx db.Tx) (idem.Outcome, error) {
 		id := ids.New().String()
 		if _, err := tx.Exec(ctx, `INSERT INTO payment_request (id, number, legal_entity_id, kind, payee_id, bank_account_id,
-			currency, amount, purpose, reference, department_id, department_path, maker_id, search, search_version)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, id, number, in.LegalEntityID, in.Kind,
-			in.PayeeID, in.BankAccountID, p.currency, p.total, in.Purpose, in.Reference, p.deptID, p.deptPath, actor,
-			search.Text(number, deref(in.Reference)), search.Version); err != nil {
+			currency, amount, purpose, reference, department_id, department_path, maker_id, search, search_version, timezone)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`, id, number, in.LegalEntityID,
+			in.Kind, in.PayeeID, in.BankAccountID, p.currency, p.total, in.Purpose, in.Reference, p.deptID, p.deptPath, actor,
+			search.Text(number, deref(in.Reference)), search.Version, p.le.Timezone); err != nil {
 			return idem.Outcome{}, err
 		}
 		if err := writeLines(ctx, tx, id, p); err != nil {
@@ -223,9 +223,9 @@ func UpdateRequest(m *core.Base, c *httpx.Context) error {
 		}
 		if _, err := tx.Exec(ctx, `UPDATE payment_request SET kind = $2, payee_id = $3, bank_account_id = $4, currency = $5,
 			amount = $6, purpose = $7, reference = $8, department_id = $9, department_path = $10, search = $11,
-			search_version = $12, version = version + 1, updated_at = now() WHERE id = $1`, r.ID, in.Kind, in.PayeeID,
-			in.BankAccountID, p.currency, p.total, in.Purpose, in.Reference, p.deptID, p.deptPath,
-			search.Text(r.Number, deref(in.Reference)), search.Version); err != nil {
+			search_version = $12, timezone = $13, version = version + 1, updated_at = now() WHERE id = $1`, r.ID, in.Kind,
+			in.PayeeID, in.BankAccountID, p.currency, p.total, in.Purpose, in.Reference, p.deptID, p.deptPath,
+			search.Text(r.Number, deref(in.Reference)), search.Version, p.le.Timezone); err != nil {
 			return err
 		}
 		if err := writeLines(ctx, tx, r.ID, p); err != nil {

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brickkit.dev/erp-payment/events/erp.payment_task.changed.v1.schema.json",
+  "title": "erp.payment_task.changed.v1",
+  "description": "An approval task of a payment request (task type erp.payment.request.approval) or an entry (erp.payment.entry.approval), its complete state at each change, by version (be-protocol P17.15). The payload is the protocol's shared task contract; infra/workflow takes it from the publishers its deployment chose. The summary carries only fields its candidates may see: the number, the payee's name or the entry's kind, the amount and the currency; never an account number.",
+  "$ref": "https://brickkit.dev/be-protocol/schemas/flow/task.v1.schema.json"
+}

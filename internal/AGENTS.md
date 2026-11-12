@@ -9,10 +9,11 @@
 | 包 | 一句话 | 依赖（本组件内） |
 | --- | --- | --- |
 | `statements` | 对账单行：登记、匹配、差错、生成科目收付、对账情况（BR01–BR04） | `bankaccounts`、`core`、`entries`、`masterdata`、`matching` |
-| `requests` | 付款建议与付款申请：认领、审批、放行确认、执行、退回、取消、续期与失效（PR01–PR08） | `bankaccounts`、`core`、`facts`、`masterdata`、`matching`、`orgunits` |
-| `entries` | 资金调拨（转出、到账）与银行手续费、利息：审批后发布会计事实（BE01–BE04） | `bankaccounts`、`core`、`facts`、`masterdata`、`matching` |
+| `requests` | 付款建议与付款申请：认领、审批（流程内核）、放行确认、执行、退回、取消、续期与失效（PR01–PR08） | `bankaccounts`、`core`、`facts`、`masterdata`、`matching`、`orgunits`、`policies` |
+| `entries` | 资金调拨（转出、到账）与银行手续费、利息：审批（流程内核）后发布会计事实（BE01–BE04） | `bankaccounts`、`core`、`facts`、`masterdata`、`matching`、`policies` |
 | `receipts` | 收款单：登记即到账、冲正，资金事实（RC01、RC02） | `bankaccounts`、`core`、`facts`、`masterdata`、`matching` |
 | `bankaccounts` | 公司银行账户，账号是受限字段 | `core`、`masterdata` |
+| `policies` | 按法人的付款政策：审批人 | `core` |
 | `matching`（共用） | 对账单行与单据的匹配：能匹配的单据、手工与按流水号的匹配、没被匹配的单据 | `core` |
 | `orgunits` | 部门投影（协议 02） | `core`、`masterdata` |
 | `facts` | 两份共享契约的形状与发布（`Fund`、`Accounting`）；系统面 `FactService.Read` | `core`、`masterdata` |
@@ -25,7 +26,7 @@
 | --- | --- |
 | 5 | `statements` |
 | 4 | `entries`、`receipts`、`requests` |
-| 3 | `bankaccounts`、`orgunits`、`facts`、`matching` |
+| 3 | `bankaccounts`、`orgunits`、`facts`、`matching`、`policies` |
 | 2 | `masterdata` |
 | 1 | `core` |
 
@@ -37,6 +38,7 @@
 - **名字在 `core`**：资源、操作、维度、事件类型、依赖的 ID、错误原因都在 `core/names.go`、`core/rules.go`；资源定义（`core.Definitions()`）是全组件一张表。
 - **生命周期是一张表**：付款申请、收款单、调拨与收付、对账单行在哪个状态能做什么，只在各自模块的 `lifecycle.go`（`core.Table`，写法照 `erp/purchase`，SF30：以后进 SDK）。
 - **增量事实只经 `core.Fact`**：发事件与存进 `payment_fact` 在同一个事务。
+- **审批经流程内核**：`core.Base.Flow` 是 SDK 的流程内核（入口建）；付款申请与调拨收付各在自己的 `approval.go` 里给出流程定义、锁单据的钩子、结束处理、依据摘要；提交时启动，取消、失效与已批准的驳回撤回或取代，放行与执行前放行核对；实例与任务的状态只由内核写。结束处理在决定的事务里，不调用别的组件：要向财务释放的认领排工作项，调拨收付的汇率在提交时取证存下。
 - **事务外取证、事务内写**：上游调用（主数据、财务的认领、销售、汇率）在事务之前；写入、审计（`core.Change`）与发件表在同一个事务。
 
 ## 加一个模块

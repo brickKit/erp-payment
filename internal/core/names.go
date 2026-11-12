@@ -18,6 +18,9 @@ const (
 	Finance = "erp/finance"
 	// Sales answers a receipt's order reference; optional.
 	Sales = "erp/sales"
+	// Employee is the source of the flow kernel's employee projection (who holds a position, the person behind an
+	// account); optional: without it an approver is a named principal and duties are separated by account.
+	Employee = "mdm/employee"
 )
 
 // The stream and its event types (contract/events).
@@ -27,6 +30,9 @@ const (
 	AccountingFact = "erp.payment.accounting_fact.v1"
 	ReceiptChanged = "erp.receipt.changed.v1"
 	RequestChanged = "erp.payment_request.changed.v1"
+	// the approval tasks (be-protocol P17.15, P17.18; the shared task contract)
+	TaskChanged   = "erp.payment_task.changed.v1"
+	TaskHeartbeat = "erp.payment_task.heartbeat.v1"
 	// the source stream of the department projection
 	OrgStream       = "mdm.org"
 	OrgUnitChanged  = "mdm.org_unit.changed.v1"
@@ -55,12 +61,30 @@ const (
 	Statements         = "erp.payment.statement"
 	OpStatementRead    = "erp.payment.statement.read"
 	OpReconcile        = "erp.payment.statement.reconcile"
-	System             = "erp.payment.system"
-	OpSysRead          = "erp.payment.system.read"
+	Policies           = "erp.payment.policy"
+	OpPolicyRead       = "erp.payment.policy.read"
+	OpPolicyManage     = "erp.payment.policy.manage"
+	// Flows is the approval tasks' resource: the flow kernel's standard routes are registered with OpFlowDecide (a
+	// decision itself needs its flow's approve operation); OpFlowManage lists the paused tasks.
+	Flows        = "erp.payment.flow"
+	OpFlowDecide = "erp.payment.flow.decide"
+	OpFlowManage = "erp.payment.flow.manage"
+	System       = "erp.payment.system"
+	OpSysRead    = "erp.payment.system.read"
 	// OpResend is the redelivery of this component's stream (be-protocol P6.38).
 	OpResend = "erp.payment.system.resend"
 	// OpRecover is a full recovery's checks (be-protocol chapter 14: the recovery tool only).
 	OpRecover = "erp.payment.system.recover"
+)
+
+// The approval flows (be-protocol P17.1): one a document type, their task types registered here.
+const (
+	RequestFlow     = "erp.payment.request"
+	RequestTaskType = "erp.payment.request.approval"
+	RequestDocument = "payment_request"
+	EntryFlow       = "erp.payment.entry"
+	EntryTaskType   = "erp.payment.entry.approval"
+	EntryDocument   = "bank_entry"
 )
 
 // NumberKey is the read key of a bank account's whole number (a restricted field, security 09a): a grant reads it
@@ -149,6 +173,10 @@ func Definitions() *sdkauthz.Definitions {
 			{Type: Requests, ViewOperation: OpRequestRead, Dimensions: entityAndDepartment(), Fields: fields(RequestFields...)},
 			{Type: Entries, ViewOperation: OpEntryRead, Dimensions: entity(), Fields: fields(EntryFields...)},
 			{Type: Statements, ViewOperation: OpStatementRead, Dimensions: entity(), Fields: fields(StatementFields...)},
+			{Type: Policies, ViewOperation: OpPolicyRead, Dimensions: entity(),
+				Fields: fields("legal_entity_id", "approver_position_id", "approver_principal", "version")},
+			{Type: Flows, ViewOperation: OpFlowDecide, Dimensions: map[string]sdkauthz.Dimension{},
+				Fields: map[string]sdkauthz.Field{}},
 			{Type: System, ViewOperation: OpSysRead, Dimensions: map[string]sdkauthz.Dimension{},
 				Fields: map[string]sdkauthz.Field{}},
 		},
@@ -167,6 +195,10 @@ func Definitions() *sdkauthz.Definitions {
 			high(OpEntryApprove, Entries, "action"),
 			low(OpStatementRead, Statements, "read", false),
 			low(OpReconcile, Statements, "manage", true),
+			low(OpPolicyRead, Policies, "read", false),
+			high(OpPolicyManage, Policies, "manage"),
+			low(OpFlowDecide, Flows, "read", false),
+			low(OpFlowManage, Flows, "read", false),
 			low(OpSysRead, System, "read", false),
 			{Key: OpResend, ResourceType: System, Purpose: "read", RiskClass: "low"},
 			{Key: OpRecover, ResourceType: System, Purpose: "read", RiskClass: "low"},

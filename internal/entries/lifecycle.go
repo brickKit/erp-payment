@@ -29,9 +29,9 @@ const (
 
 // The cells' further conditions.
 const (
-	GuardNotMaker = "not by the maker; a charge or interest goes on to posted"
-	GuardReason   = "with a reason"
-	GuardArrival  = "an arrival date not before the transfer's"
+	GuardFlow    = "a decision on the approval task (the flow kernel checks who); a charge or interest goes on to posted"
+	GuardReason  = "with a reason"
+	GuardArrival = "an arrival date not before the transfer's"
 )
 
 var refuseEdit = core.RefuseCell("BE01", "only a draft is changed")
@@ -55,13 +55,13 @@ var Lifecycle = core.Table{
 		},
 		Approve: {
 			Draft:     core.RefuseCell("BE02", "a draft is submitted first"),
-			Submitted: {Rule: "BE02", Effect: core.Move, To: InTransit, Op: core.OpEntryApprove, Guard: GuardNotMaker},
+			Submitted: {Rule: "BE02", Effect: core.Move, To: InTransit, Op: core.OpEntryApprove, Guard: GuardFlow},
 			InTransit: core.IgnoreCell("BE02"), Posted: core.IgnoreCell("BE02"),
 			Cancelled: core.RefuseCell("BE02", "a cancelled entry is not approved"),
 		},
 		Reject: {
 			Draft:     core.RefuseCell("BE02", "a draft is not rejected"),
-			Submitted: {Rule: "BE02", Effect: core.Move, To: Draft, Op: core.OpEntryApprove, Guard: GuardReason},
+			Submitted: {Rule: "BE02", Effect: core.Move, To: Draft, Op: core.OpEntryApprove, Guard: GuardFlow},
 			InTransit: core.RefuseCell("BE02", "a transfer gone out is not rejected"),
 			Posted:    core.RefuseCell("BE02", "a posted entry is not rejected"),
 			Cancelled: core.RefuseCell("BE02", "a cancelled entry is not rejected"),

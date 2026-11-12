@@ -90,9 +90,11 @@ func TestPaymentEndToEnd(t *testing.T) {
 	fx := start(t)
 	fx.bankAccounts()
 	fx.receipts()
+	fx.policies()
 	fx.requests()
 	fx.entries()
 	fx.statements()
+	fx.approvals()
 	fx.recoveryChecks()
 }
 

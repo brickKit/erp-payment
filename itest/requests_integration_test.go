@@ -82,7 +82,7 @@ func (fx *fixture) requests() {
 	assert.Equal(t, 409, code, "a submitted request is not edited (PR01): %v", out)
 
 	// PR03, PR04: the applicant neither approves nor releases; Bob does; releasing confirms the claims at finance
-	fx.reqRefused(fx.alice, id, "approve", nil, "APPROVER_IS_SUBMITTER")
+	fx.reqRefused(fx.alice, id, "approve", nil, "SELF_APPROVAL") // the flow kernel's check by person (3.0.11)
 	assert.Equal(t, "approved", fx.reqAction(fx.bob, id, "approve", nil)["state"])
 	fx.reqRefused(fx.alice, id, "release", nil, "APPROVER_IS_SUBMITTER")
 	req = fx.reqAction(fx.bob, id, "release", nil)
@@ -134,7 +134,8 @@ func (fx *fixture) requests() {
 	ref = fx.reqAction(fx.bob, rid, "reject", map[string]any{"reason": "退款金额要和客户再确认"})
 	assert.Equal(t, "draft", ref["state"])
 	assert.Equal(t, "退款金额要和客户再确认", ref["reason"])
-	assert.Equal(t, "released", fx.finance.state(first))
+	require.Eventually(t, func() bool { return fx.finance.state(first) == "released" }, 20*time.Second, 100*time.Millisecond,
+		"released by the work queued with the decision (3.0.11: the decision's transaction calls no one)")
 	assert.Nil(t, at(ref, "lines", 0, "claim_id"))
 	ref = fx.reqAction(fx.alice, rid, "submit", nil)
 	assert.NotEqual(t, first, at(ref, "lines", 0, "claim_id"), "a new submission, a new claim")

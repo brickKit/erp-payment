@@ -67,6 +67,9 @@ func New(rt *runtime.Runtime) (*Module, error) {
 	if e, ok := flow.NewEmployees(rt); ok {
 		m.employees, k.Directory = e, e
 	}
+	if err := k.UseActions(rt); err != nil { // buttons in a channel such as DingTalk (be-protocol P17.19, P17.20)
+		return nil, err
+	}
 	if err := k.Check(); err != nil {
 		return nil, err
 	}
@@ -148,6 +151,9 @@ func (m *Module) Subscriptions(s *events.Subscriptions) error {
 		Handle: m.received(orgunits.OnOrgUnit)})
 	if m.employees != nil {
 		s.Add(m.employees.Sub())
+	}
+	for _, sub := range m.b.Flow.ActionSubs() { // the configured channel members' actions (P17.20)
+		s.Add(sub)
 	}
 	return nil
 }

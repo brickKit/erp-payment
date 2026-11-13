@@ -4,7 +4,7 @@ kind: Component
 metadata:
   id: erp/payment
   name: Payment
-  version: 3.0.24
+  version: 3.0.25
   description: "The results of money, registered offline: company bank accounts, receipts, payment requests that claim erp/finance's open items before approval and confirm them before the money goes out, transfers with bank charges and interest, and the manual reconciliation of bank statements; the fund and accounting facts by erp/finance's shared contracts (protocol 05, D47)"
   repository: https://github.com/brickKit/erp-payment
 
@@ -77,6 +77,9 @@ configSchema:
       type: string
     DEPLOYMENT_ID:
       description: 'process-level: the same for every member of a shell'
+      type: string
+    FLOW_ACTION_SOURCES:
+      description: 'the channel members whose button actions the approvals take: component IDs, comma separated (e.g. integration/im-dingtalk); unset: none (no buttons, the link still works)'
       type: string
     IAM_ISSUER:
       description: 'process-level: the same for every member of a shell'

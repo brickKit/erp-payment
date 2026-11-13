@@ -13,12 +13,13 @@ import (
 	"github.com/brickKit/be-sdk-go/v3/component"
 	"github.com/brickKit/be-sdk-go/v3/config"
 	"github.com/brickKit/be-sdk-go/v3/events"
+	"github.com/brickKit/be-sdk-go/v3/flow"
 	"github.com/brickKit/be-sdk-go/v3/runtime"
 )
 
 // Identity.
 const (
-	Version  = "3.0.24"
+	Version  = "3.0.25"
 	GRPCPort = 9228
 )
 
@@ -30,11 +31,14 @@ func migrations() fs.FS {
 	return sub
 }
 
-// Keys are the component's own configuration keys: none.
-func Keys() []config.Key { return nil }
+// Keys are the component's own configuration keys: the flow kernel's (FLOW_ACTION_SOURCES).
+func Keys() []config.Key { return flow.Keys() }
 
 // Own describes the own keys for the manifest's configSchema.
-var Own = map[string]string{}
+var Own = map[string]string{
+	flow.ActionSourcesKey: "the channel members whose button actions the approvals take: component IDs, comma separated " +
+		"(e.g. integration/im-dingtalk); unset: none (no buttons, the link still works)",
+}
 
 // Definition is the component as the launcher and the shells take it.
 func Definition() component.Definition {

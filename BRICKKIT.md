@@ -31,7 +31,7 @@
 
 ## 配置指南
 
-全部键见 `component.yaml` 的 `configSchema`（由 SDK 生成，测试核对）。本组件没有自己的配置键。
+全部键见 `component.yaml` 的 `configSchema`（由 SDK 生成，测试核对）。
 
 | 键 | 说明 |
 | --- | --- |
@@ -39,6 +39,7 @@
 | `PG_HOST`、`PG_DATABASE`、`PG_USER`、`PG_PASSWORD`、`PG_SCHEMA`（必填） | 自己的数据库，密码是密钥；迁移另用 `PG_OWNER_USER`、`PG_OWNER_PASSWORD` |
 | `BUS_URL`（必填，密钥）、`IMPLEMENTATION_INSTANCE`（必填） | 消息系统；实现实例是安装时生成的随机身份 |
 | `AUDIT_GRPC_URL` | 审计组件的系统面；缺时审计记录留在本地，按协议 03 处理 |
+| `FLOW_ACTION_SOURCES` | 审批任务接受哪些渠道成员的按钮动作：组件 ID，逗号分隔（例如 `integration/im-dingtalk`）；不填时卡片只有链接、没有动作按钮。列出的成员要同时装上，它的动作事件流由 SDK 订阅（线协议 P17.19、P17.20） |
 
 依赖的地址由 BrickKit 按依赖注入（`MDM_ORG_GRPC_ENDPOINT`、`MDM_PARTNER_GRPC_ENDPOINT`、`MDM_CURRENCY_GRPC_ENDPOINT`，装了时还有 `ERP_FINANCE_GRPC_ENDPOINT`、`ERP_SALES_GRPC_ENDPOINT`、`MDM_EMPLOYEE_GRPC_ENDPOINT`），不是配置键。审批人是按法人的付款政策，经用户面维护（改审批人只影响之后提交的单据）。单号格式 `RC`、`PR`、`BE` 加 `-<法人代码>-<年>-<六位序号>`（允许缺号）。
 

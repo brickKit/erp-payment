@@ -187,6 +187,8 @@
 
 ## 实现状态
 
+3.0.27：清单的 `events.subscribes` 登记钉钉渠道的动作事件 `integration.im_dingtalk_action.recorded.v1`（`FLOW_ACTION_SOURCES` 列出 `integration/im-dingtalk` 时订阅），组件索引因此能查到谁订阅它（装配项目阶段计划 C10 的一致性考试）；行为不变。
+
 3.0.26：be-sdk-go alpha.132（全系统同一个 SDK 版本；SDK 加了渠道成员与交互按钮，线协议 alpha.129，装配项目阶段计划 C10）及随之连锁的版本；本组件行为不变。
 
 3.0.25（装配项目阶段计划 C10 的 P6）：审批接受渠道成员的按钮动作（线协议 P17.19、P17.20）：配置键 `FLOW_ACTION_SOURCES` 列出渠道成员，流程内核为能决定的候选人签发动作授权、随审批待办的意图交给通知组件，订阅渠道成员的动作事件、在消费的事务里收下；不填时与以前一样只有链接。be-sdk-go alpha.132（线协议 alpha.129）。

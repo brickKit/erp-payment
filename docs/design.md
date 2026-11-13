@@ -187,6 +187,8 @@
 
 ## 实现状态
 
+3.0.28：be-sdk-go alpha.133（全系统同一个 SDK 版本；SDK 按 C10 一致性考试修正：带放弃时刻的对外命令不转人工、出站错误不带查询串、意图可只写站内，线协议 alpha.130，装配项目阶段计划 C10）及随之连锁的版本；本组件行为不变。
+
 3.0.27：清单的 `events.subscribes` 登记钉钉渠道的动作事件 `integration.im_dingtalk_action.recorded.v1`（`FLOW_ACTION_SOURCES` 列出 `integration/im-dingtalk` 时订阅），组件索引因此能查到谁订阅它（装配项目阶段计划 C10 的一致性考试）；行为不变。
 
 3.0.26：be-sdk-go alpha.132（全系统同一个 SDK 版本；SDK 加了渠道成员与交互按钮，线协议 alpha.129，装配项目阶段计划 C10）及随之连锁的版本；本组件行为不变。

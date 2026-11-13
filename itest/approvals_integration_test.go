@@ -79,7 +79,7 @@ func (fx *fixture) approvals() {
 		if comment != nil {
 			body["comment"] = comment
 		}
-		return c.do("POST", "/be/flow/tasks/"+task+"/decisions", body, key...)
+		return c.do("POST", "/api/payment/flow/tasks/"+task+"/decisions", body, key...)
 	}
 	code, out := decide(fx.bob, tid, task["version"], "reject", nil)
 	assert.Equal(t, 400, code, out)
@@ -90,7 +90,7 @@ func (fx *fixture) approvals() {
 	code, out = decide(fx.bob, tid, task["version"].(float64)+1, "approve", nil)
 	assert.Equal(t, 409, code, out)
 	assert.Equal(t, "VERSION_CONFLICT", out["reason"])
-	code, out = fx.carol.do("GET", "/be/flow/tasks/"+tid, nil)
+	code, out = fx.carol.do("GET", "/api/payment/flow/tasks/"+tid, nil)
 	assert.Equal(t, 404, code, out)
 
 	// PR03: rejected on its task: back to draft with the comment; its claim released by the queued work
@@ -174,7 +174,7 @@ func (fx *fixture) approvals() {
 	pt := fx.task(p["id"].(string))
 	assert.Equal(t, "paused", pt["state"])
 	assert.Equal(t, "no_assignee", pt["paused_reason"])
-	code, paused := fx.alice.do("GET", "/be/flow/tasks?state=paused", nil)
+	code, paused := fx.alice.do("GET", "/api/payment/flow/tasks?state=paused", nil)
 	require.Equal(t, 200, code, paused)
 	assert.NotEmpty(t, paused["tasks"])
 	policy(map[string]any{"approver_principal": sectest.Bob})

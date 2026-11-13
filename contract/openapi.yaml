@@ -9,7 +9,7 @@ info:
     payment requests the department too). Errors are application/problem+json with a reason. Lists page by cursor only (protocol
     14). Amounts are decimal strings. The fund and accounting facts are erp/finance''s shared contracts (events/); the read
     of the incremental facts is on the system surface (proto). Payment requests and entries are approved on the SDK''s flow
-    kernel (be-protocol chapter 17): its standard routes /be/flow/tasks (a decision, a task, the paused tasks) are registered
+    kernel (be-protocol chapter 17): its standard routes /api/payment/flow/tasks (a decision, a task, the paused tasks) are registered
     by the SDK and specified by the protocol, not here; the approve and reject routes below decide the caller''s task of the
     document through it (Idempotency-Key optional there: else the task, the caller and the decision). The approver is the
     legal entity''s payment policy''s (a position of mdm/org or a principal).'

@@ -134,7 +134,7 @@
 
 ## 规则要点
 
-- **审批经流程内核**：任务按共享任务契约发布给统一待办，每个任务至多一个决定、重试只有一个决定；岗位上没人（或只有申请人自己）、员工投影不完整时任务暂停并告警，有 `erp.payment.flow.manage` 的人在 `GET /be/flow/tasks?state=paused` 看到；改政策只影响之后提交的单据。任务摘要只放单号、种类、金额与币种，不放账号与收款方。
+- **审批经流程内核**：任务按共享任务契约发布给统一待办，每个任务至多一个决定、重试只有一个决定；岗位上没人（或只有申请人自己）、员工投影不完整时任务暂停并告警，有 `erp.payment.flow.manage` 的人在 `GET /api/payment/flow/tasks?state=paused` 看到；改政策只影响之后提交的单据。任务摘要只放单号、种类、金额与币种，不放账号与收款方。
 - **每笔付给伙伴的钱都针对财务的一个未清项**（资金调拨与科目收付除外，它们直接过账）：提交审批前认领、放行时（人去银行办理之前）确认、财务按付款事实的实付正式化（协议 05）。没装财务时付款申请不针对未清项，只线下登记，人工核对（边界卡的缺件写法）。
 - **受理、批准、执行、到账分别表达**（D47）：付款申请的提交与批准是受理与批准，执行是钱已付出的登记，到账是收款单；首批没有“通道已接收”，适配器来了以后加。
 - **事实在业务事务里发布**：收款登记、付款执行、退回、冲正、调拨与收付的过账，都在同一个本地事务里写单据、写发件表与 `payment_fact`（不可遗漏的增量事实，协议 05 的共同规则：事实身份由本组件生成，按身份读回）。
@@ -152,7 +152,7 @@
 | 收款单：列表、读取、登记、冲正 | 用户面 | `erp.payment.receipt.read`、`.register`、`.reverse` |
 | 付款建议（财务的到期未清项） | 用户面 | `erp.payment.request.read` |
 | 付款政策：读取、设置 | 用户面 | `erp.payment.policy.read`、`.manage` |
-| 审批任务的决定、读取、暂停的任务（标准路由 `/be/flow/tasks/…`，SDK 登记） | 用户面 | 路由登记在 `erp.payment.flow.decide`；决定按任务的流程要 `erp.payment.request.approve` 或 `erp.payment.entry.approve`；暂停的任务要 `erp.payment.flow.manage` |
+| 审批任务的决定、读取、暂停的任务（标准路由 `/api/payment/flow/tasks/…`，SDK 登记） | 用户面 | 路由登记在 `erp.payment.flow.decide`；决定按任务的流程要 `erp.payment.request.approve` 或 `erp.payment.entry.approve`；暂停的任务要 `erp.payment.flow.manage` |
 | 付款申请：列表、读取、新建、修改、提交、批准、驳回、放行、执行、退回、取消 | 用户面 | `erp.payment.request.read`、`.edit`（新建、修改、提交、取消）、`.approve`（批准、驳回）、`.execute`（放行、执行、退回） |
 | 资金调拨与科目收付：列表、读取、新建、修改、提交、到账、取消；批准、驳回 | 用户面 | `erp.payment.entry.read`、`.edit`；`.approve` |
 | 对账单行：登记、列表、匹配、取消匹配、处理差错、重新打开、生成科目收付；账户的对账情况 | 用户面 | `erp.payment.statement.read`、`.reconcile`（生成科目收付另要 `erp.payment.entry.edit`） |
@@ -186,6 +186,8 @@
 | 身份、授权、审计 | 是 | 平台 | — |
 
 ## 实现状态
+
+3.0.30：be-sdk-go alpha.134（线协议 alpha.131 的 P11.11：组件的公网前缀；装配项目阶段计划 C11 的设计考试）：审批任务的标准路由移到 `/api/payment/flow/tasks/…`（原 `/be/flow/…`）。
 
 3.0.29：依赖跟到 erp/purchase 3.0.25（装配项目阶段计划 C10 复盘的审计写法修正连锁）；本组件行为不变。
 
